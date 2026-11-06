@@ -1,0 +1,8 @@
+# Repricing rules. A SKU with no floor is never repriced. The floor always wins.
+defaults:
+  undercut: 0.50        # aim this much under the lowest competitor
+  max_step_pct: 10      # never move more than this in one run
+  stale_days: 14        # no sale for this long (from eBay orders, or since listed)...
+  stale_drop_pct: 5     # ...drops the price this much
+  round_99: true        # prices end in .99
+skus: {}                # e.g.  AI-1A2B3C4D5E6F: {floor: 45, ceiling: 90}

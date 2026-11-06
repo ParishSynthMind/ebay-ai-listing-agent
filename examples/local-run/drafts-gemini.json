@@ -1,0 +1,56 @@
+[
+  {
+    "sku": "AI-DD8583C9DA3C",
+    "status": "ready",
+    "listing": {
+      "sku": "AI-DD8583C9DA3C",
+      "title": "Canon AE-1 35mm Film SLR Camera with 50mm 1:1.8 S.C. Lens",
+      "category_id": "15232",
+      "category_path": "Cameras & Photo > Film Photography > Film Cameras",
+      "condition": "USED_VERY_GOOD",
+      "condition_description": "Light scuffs on the top plate. Shutter fires and meter works, lens attached.",
+      "aspects": {
+        "Brand": [
+          "Canon"
+        ],
+        "Type": [
+          "SLR"
+        ],
+        "Model": [
+          "Canon AE-1"
+        ],
+        "Film Format": [
+          "35mm"
+        ],
+        "Focus Type": [
+          "Manual"
+        ],
+        "Color": [
+          "Silver",
+          "Black"
+        ]
+      },
+      "description_html": "<h3>Canon AE-1 35mm Film Camera with 50mm 1:1.8 Lens</h3><p><b>Condition:</b><br>Used, very good cosmetic condition with light scuffs on the top plate.</p><p><b>Functionality:</b><br>Shutter fires and the light meter works. The camera has not been film tested.</p><p><b>Includes:</b><br><ul><li>Canon AE-1 Camera Body</li><li>Canon Lens FD 50mm 1:1.8 S.C.</li></ul></p>",
+      "price": 149.99,
+      "currency": "USD",
+      "quantity": 1,
+      "image_urls": [
+        "https://upload.wikimedia.org/wikipedia/commons/4/43/Canon_AE-1_2.jpg"
+      ],
+      "ai": {
+        "price_reasoning": "Estimated based on current market values for a Canon AE-1 with a 50mm 1.8 lens in working cosmetic condition.",
+        "price_low": 120.0,
+        "price_high": 180.0,
+        "check": [
+          "Confirm if the battery is included.",
+          "Verify lens glass clarity for any fungus or scratches not visible in the photo."
+        ],
+        "price_from": "ai",
+        "provider": "gemini",
+        "model": "gemini-3.5-flash-lite"
+      }
+    },
+    "problems": [],
+    "notes": []
+  }
+]

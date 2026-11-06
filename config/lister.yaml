@@ -1,0 +1,51 @@
+# eBay AI listing agent settings. No secrets here: keys come from the Keychain or the environment.
+environment: sandbox          # the only one this build allows
+marketplace: EBAY_US
+currency: USD
+ai:
+  provider: claude            # claude | gemini
+  model: null                 # null = the provider's default (claude-sonnet-5-5 / gemini-3.5-flash-lite)
+  cost_cap_usd: 0.50          # a run stops before it passes this much AI spend
+state_dir: state              # local SQLite record, aspect cache, seller setup ids (git-ignored)
+
+# Used when eBay's category suggestion does not make sense for the item (eBay documents that
+# getCategorySuggestions is not supported in the sandbox). Keyword -> EBAY_US leaf category id.
+category_map:
+  running shoe: "15709"
+  sneaker: "15709"
+  trainer: "15709"
+  film camera: "15232"
+  camera: "15232"
+  mug: "20638"
+
+# What `ebay-lister setup-sandbox` creates for the sandbox seller if it is not there yet.
+location:
+  key: ai-lister-wh1
+  body:
+    name: AI Lister warehouse
+    merchantLocationStatus: ENABLED
+    locationTypes: [WAREHOUSE]
+    location:
+      address: {addressLine1: 2145 Hamilton Avenue, city: San Jose, stateOrProvince: CA, postalCode: "95125", country: US}
+policies:
+  fulfillment:
+    name: AI Lister free shipping
+    categoryTypes: [{name: ALL_EXCLUDING_MOTORS_VEHICLES}]
+    handlingTime: {value: 1, unit: DAY}
+    shippingOptions:
+      - optionType: DOMESTIC
+        costType: FLAT_RATE
+        shippingServices:
+          - {shippingCarrierCode: USPS, shippingServiceCode: USPSPriority, freeShipping: true, sortOrder: 1,
+             shippingCost: {value: "0.00", currency: USD}}
+  payment:
+    name: AI Lister payment
+    categoryTypes: [{name: ALL_EXCLUDING_MOTORS_VEHICLES}]
+    immediatePay: true
+  return:
+    name: AI Lister 30 day returns
+    categoryTypes: [{name: ALL_EXCLUDING_MOTORS_VEHICLES}]
+    returnsAccepted: true
+    returnPeriod: {value: 30, unit: DAY}
+    returnShippingCostPayer: BUYER
+    refundMethod: MONEY_BACK

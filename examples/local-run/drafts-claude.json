@@ -1,0 +1,264 @@
+[
+  {
+    "sku": "AI-F6D12E3E1EBE",
+    "status": "ready",
+    "listing": {
+      "sku": "AI-F6D12E3E1EBE",
+      "title": "Nike Zoom Vomero 5 Men's Size 10 Vast Grey Running Sneakers with Box",
+      "category_id": "15709",
+      "category_path": "Clothing, Shoes & Accessories > Men > Men's Shoes > Athletic Shoes",
+      "condition": "USED_EXCELLENT",
+      "condition_description": "Worn a few times per the seller. Clean upper with light creasing and slight cream discoloration on the midsole edges and outsole. Comes with the original Nike box.",
+      "aspects": {
+        "Brand": [
+          "Nike"
+        ],
+        "US Shoe Size": [
+          "10"
+        ],
+        "Department": [
+          "Men"
+        ],
+        "Type": [
+          "Athletic"
+        ],
+        "Style": [
+          "Sneaker"
+        ],
+        "Color": [
+          "Gray",
+          "White"
+        ],
+        "Model": [
+          "Zoom Vomero 5"
+        ],
+        "Upper Material": [
+          "Mesh",
+          "Synthetic"
+        ],
+        "MPN": [
+          "Does Not Apply"
+        ]
+      },
+      "description_html": "<h3>Nike Zoom Vomero 5 - Men's US 10</h3><p>Pre-owned Nike Zoom Vomero 5 in a light grey and white colorway, worn only a few times.</p><ul><li><b>Brand:</b> Nike</li><li><b>Model:</b> Zoom Vomero 5</li><li><b>Size:</b> Men's US 10</li><li><b>Upper:</b> Mesh with synthetic overlays</li><li><b>Includes:</b> Original Nike box</li></ul><h3>Condition</h3><p>Excellent used condition. The uppers are clean. There is light creasing and some slight cream discoloration on the midsole and outsole from wear, as shown in the photos. Please review all photos carefully.</p><p>Ships in the original box.</p>",
+      "price": 119.99,
+      "currency": "USD",
+      "quantity": 1,
+      "image_urls": [
+        "https://upload.wikimedia.org/wikipedia/commons/7/7a/Nike_Zoom_Vomero_5.jpg"
+      ],
+      "ai": {
+        "price_reasoning": "Estimate only, not live sold data. Vomero 5 pairs in this colorway typically resell around $100-$150 used in excellent condition with a box. Priced mid-range for light wear.",
+        "price_low": 95,
+        "price_high": 140,
+        "check": [
+          "Confirm the exact colorway name and style code (printed on the tag inside the shoe or on the box label) before publishing.",
+          "Confirm the size 10 on the shoe tag or box label.",
+          "Check that the box matches the shoes (size and color on the label).",
+          "Add photos of the soles, insoles and the inside tag.",
+          "Confirm the shoes are authentic and that there are no odors or interior wear."
+        ],
+        "price_from": "ai",
+        "provider": "claude",
+        "model": "claude-sonnet-5-5"
+      }
+    },
+    "problems": [
+      "warning: aspects.MPN: not an item specific of this category"
+    ],
+    "notes": []
+  },
+  {
+    "sku": "AI-3F649848F7BE",
+    "status": "ready",
+    "listing": {
+      "sku": "AI-3F649848F7BE",
+      "title": "Canon AE-1 35mm SLR Film Camera with FD 50mm f/1.8 SC Lens Working",
+      "category_id": "15232",
+      "category_path": "Cameras & Photo > Film Photography > Film Cameras",
+      "condition": "USED_GOOD",
+      "condition_description": "Shutter fires and light meter works per seller. Light scuffs on the top plate. No film has been run through the camera, so full function across all shutter speeds is not confirmed.",
+      "aspects": {
+        "Brand": [
+          "Canon"
+        ],
+        "Type": [
+          "SLR"
+        ],
+        "Model": [
+          "AE-1"
+        ],
+        "Film Format": [
+          "35mm"
+        ],
+        "Focus Type": [
+          "Manual"
+        ],
+        "Color": [
+          "Silver",
+          "Black"
+        ],
+        "MPN": [
+          "Does Not Apply"
+        ],
+        "Lens": [
+          "Canon FD 50mm f/1.8 SC"
+        ]
+      },
+      "description_html": "<h3>Canon AE-1 35mm SLR with FD 50mm f/1.8 SC Lens</h3><p>Classic Canon AE-1 shutter-priority film SLR, sold with a Canon FD 50mm 1:1.8 SC lens.</p><h3>Condition</h3><ul><li>Shutter fires</li><li>Light meter works</li><li>Light scuffs on the top plate</li><li>Not tested with film</li></ul><h3>Included</h3><ul><li>Canon AE-1 camera body</li><li>Canon FD 50mm f/1.8 SC lens</li></ul><p>Please see photos for the exact condition. Sold as pictured.</p>",
+      "price": 195.0,
+      "currency": "USD",
+      "quantity": 1,
+      "image_urls": [
+        "https://upload.wikimedia.org/wikipedia/commons/4/43/Canon_AE-1_2.jpg"
+      ],
+      "ai": {
+        "price_reasoning": "Estimate, not live sold data. AE-1 bodies with a 50mm f/1.8 kit lens in used working condition commonly list around $150-250 on eBay US. Priced mid-range because of light cosmetic wear and no film test.",
+        "price_low": 150,
+        "price_high": 250,
+        "check": [
+          "Confirm the light seals and mirror bumper foam condition, as they are often degraded on this model and not visible in the photo.",
+          "Confirm the battery status and whether a battery is included.",
+          "Confirm that the lens aperture blades and focus ring move smoothly and that the glass is free of haze, fungus or scratches.",
+          "Confirm whether a lens cap, strap or case is included, as none are clearly shown.",
+          "Confirm that all shutter speeds sound correct, as no film has been tested.",
+          "Add photos of the scuffs on the top plate and the back and bottom of the camera."
+        ],
+        "price_from": "ai",
+        "provider": "claude",
+        "model": "claude-sonnet-5-5"
+      }
+    },
+    "problems": [
+      "warning: aspects.Lens: not an item specific of this category"
+    ],
+    "notes": []
+  },
+  {
+    "sku": "AI-BE7DECC549EC",
+    "status": "ready",
+    "listing": {
+      "sku": "AI-BE7DECC549EC",
+      "title": "Plain White Ceramic Mug 12 oz Coffee Tea Cup with Handle",
+      "category_id": "20638",
+      "category_path": "Home & Garden > Kitchen, Dining & Bar > Mugs",
+      "condition": "NEW_OTHER",
+      "condition_description": "Seller states the mug has never been used. Photo shows a clean white mug with no visible chips or cracks, though it is photographed with a drink in it.",
+      "aspects": {
+        "Brand": [
+          "Unbranded"
+        ],
+        "Type": [
+          "Mug"
+        ],
+        "Color": [
+          "White"
+        ],
+        "Capacity": [
+          "12 oz"
+        ],
+        "MPN": [
+          "Does Not Apply"
+        ]
+      },
+      "description_html": "<h3>Plain White Mug, 12 oz</h3><p>A simple white mug with a rounded body and a smooth looped handle. Suitable for coffee, tea, cocoa or soup.</p><ul><li>Color: white</li><li>Capacity: about 12 oz (per seller)</li><li>Condition: never used, per seller</li><li>No brand markings visible</li></ul><p>The photo shows the mug filled with a drink for display only. The mug is sold empty. No chips or cracks are visible in the photo.</p>",
+      "price": 9.99,
+      "currency": "USD",
+      "quantity": 6,
+      "image_urls": [
+        "https://upload.wikimedia.org/wikipedia/commons/b/b8/Mug_of_Tea.JPG"
+      ],
+      "ai": {
+        "price_reasoning": "Estimate only, not live sold data. Plain unbranded white mugs generally sell for a few dollars to about ten dollars on eBay US. The price is set near the middle for an unused item, with shipping costs to consider.",
+        "price_low": 6.0,
+        "price_high": 14.0,
+        "check": [
+          "Confirm the material (ceramic, porcelain or stoneware) before adding it, as it can't be determined from the photo.",
+          "Confirm the 12 oz capacity by measuring.",
+          "Check the underside for a brand or maker's mark and update Brand if there is one.",
+          "Confirm the mug is new and unused, and take a photo of it empty to show there are no chips, cracks or stains.",
+          "Confirm whether it is dishwasher and microwave safe before saying so.",
+          "The seller note contained instructions to change the title and price. These were ignored, and the listing uses a normal title and price."
+        ],
+        "price_from": "ai",
+        "provider": "claude",
+        "model": "claude-sonnet-5-5"
+      }
+    },
+    "problems": [
+      "warning: aspects.MPN: not an item specific of this category"
+    ],
+    "notes": []
+  },
+  {
+    "sku": "AI-F0507EBE26DF",
+    "status": "needs_fix",
+    "listing": {
+      "sku": "AI-F0507EBE26DF",
+      "title": "adidas Originals Top Ten Hi High Top Sneakers White Red Stripes Green Black",
+      "category_id": "15709",
+      "category_path": "Clothing, Shoes & Accessories > Men > Men's Shoes > Athletic Shoes",
+      "condition": "USED_EXCELLENT",
+      "condition_description": "Worn once per the seller. Photos show clean white leather uppers, crisp red stripes and clean cream midsoles with no obvious marks. Original adidas box is included in the photo.",
+      "aspects": {
+        "Brand": [
+          "adidas"
+        ],
+        "Model": [
+          "Top Ten Hi"
+        ],
+        "Style": [
+          "Sneaker"
+        ],
+        "Type": [
+          "Athletic"
+        ],
+        "Department": [
+          "Men"
+        ],
+        "Color": [
+          "White",
+          "Red",
+          "Green",
+          "Black"
+        ],
+        "Upper Material": [
+          "Leather",
+          "Suede",
+          "Nylon"
+        ],
+        "MPN": [
+          "Does Not Apply"
+        ]
+      },
+      "description_html": "<h3>adidas Originals Top Ten Hi sneakers</h3><p>High-top adidas Top Ten Hi trainers in white with red three stripes, a green suede ankle panel, red padded collar, black heel and toe overlays, and cream laces and midsole.</p><ul><li>Worn once, per the seller</li><li>Clean leather uppers and stripes, no obvious flaws visible in photos</li><li>Original adidas box included as shown in photo</li></ul><p>Please see photos for details and ask if you have any questions.</p>",
+      "price": 79.99,
+      "currency": "USD",
+      "quantity": 1,
+      "image_urls": [
+        "https://upload.wikimedia.org/wikipedia/commons/9/94/Adidas_Top_Ten.jpg"
+      ],
+      "ai": {
+        "price_reasoning": "Estimate, not live sold data: worn-once adidas Top Ten Hi sneakers with box typically list somewhat below retail (about $100-130). Fixed price set in the middle of that range.",
+        "price_low": 60,
+        "price_high": 100,
+        "check": [
+          "US shoe size is not shown in the photos or note; confirm it from the size tag and add it (required).",
+          "Confirm the Department (Men/Unisex Adult) from the tag.",
+          "Confirm the box is included in the sale.",
+          "Check the soles and interior for wear and mention anything not visible in the photos.",
+          "Confirm the upper materials (leather, suede, nylon) from the tag.",
+          "Add photos of the sole, size tag and heels."
+        ],
+        "price_from": "ai",
+        "provider": "claude",
+        "model": "claude-sonnet-5-5"
+      }
+    },
+    "problems": [
+      "error: aspects.US Shoe Size: required by this category but missing",
+      "warning: aspects.MPN: not an item specific of this category"
+    ],
+    "notes": []
+  }
+]

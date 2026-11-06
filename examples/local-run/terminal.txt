@@ -1,0 +1,344 @@
+$ ebay-lister setup-sandbox
+opted in to business policies (eBay says this can take a while to apply)
+made fulfillment policy 'AI Lister free shipping' (6000000002)
+made payment policy 'AI Lister payment' (6000000003)
+made return policy 'AI Lister 30 day returns' (6000000004)
+made inventory location 'ai-lister-wh1'
+saved seller-setup.json
+
+$ ebay-lister check
+application token: ok; category tree for EBAY_US: 0
+seller (user) token: ok
+business policies opted in: True
+seller setup: location ai-lister-wh1, 3 policies
+
+$ ebay-lister categories 35mm film camera
+   15232  Cameras & Photo > Film Photography > Film Cameras
+
+$ ebay-lister draft --csv samples/items.csv   (dry run, nothing sent)
+[ready] AI-F6D12E3E1EBE
+  title     Nike Zoom Vomero 5 Men's Size 10 Vast Grey Running Sneakers with Box  (68/80)
+  category  15709  Clothing, Shoes & Accessories > Men > Men's Shoes > Athletic Shoes
+  condition USED_EXCELLENT
+  price     119.99 USD  (ai; AI range 95-140): Estimate only, not live sold data. Vomero 5 pairs in this colorway typically resell around $100-$150 used in excellent condition with a box.
+    Brand: Nike
+    US Shoe Size: 10
+    Department: Men
+    Type: Athletic
+    Style: Sneaker
+    Color: Gray, White
+    Model: Zoom Vomero 5
+    Upper Material: Mesh, Synthetic
+    MPN: Does Not Apply
+  check: Confirm the exact colorway name and style code (printed on the tag inside the shoe or on the box label) before publishing.
+  check: Confirm the size 10 on the shoe tag or box label.
+  check: Check that the box matches the shoes (size and color on the label).
+  check: Add photos of the soles, insoles and the inside tag.
+  check: Confirm the shoes are authentic and that there are no odors or interior wear.
+  warning: aspects.MPN: not an item specific of this category
+
+[ready] AI-3F649848F7BE
+  title     Canon AE-1 35mm SLR Film Camera with FD 50mm f/1.8 SC Lens Working  (66/80)
+  category  15232  Cameras & Photo > Film Photography > Film Cameras
+  condition USED_GOOD
+  price     195.00 USD  (ai; AI range 150-250): Estimate, not live sold data. AE-1 bodies with a 50mm f/1.8 kit lens in used working condition commonly list around $150-250 on eBay US. Pri
+    Brand: Canon
+    Type: SLR
+    Model: AE-1
+    Film Format: 35mm
+    Focus Type: Manual
+    Color: Silver, Black
+    MPN: Does Not Apply
+    Lens: Canon FD 50mm f/1.8 SC
+  check: Confirm the light seals and mirror bumper foam condition, as they are often degraded on this model and not visible in the photo.
+  check: Confirm the battery status and whether a battery is included.
+  check: Confirm that the lens aperture blades and focus ring move smoothly and that the glass is free of haze, fungus or scratches.
+  check: Confirm whether a lens cap, strap or case is included, as none are clearly shown.
+  check: Confirm that all shutter speeds sound correct, as no film has been tested.
+  check: Add photos of the scuffs on the top plate and the back and bottom of the camera.
+  warning: aspects.Lens: not an item specific of this category
+
+[ready] AI-BE7DECC549EC
+  title     Plain White Ceramic Mug 12 oz Coffee Tea Cup with Handle  (56/80)
+  category  20638  Home & Garden > Kitchen, Dining & Bar > Mugs
+  condition NEW_OTHER
+  price     9.99 USD  (ai; AI range 6.0-14.0): Estimate only, not live sold data. Plain unbranded white mugs generally sell for a few dollars to about ten dollars on eBay US. The price is
+    Brand: Unbranded
+    Type: Mug
+    Color: White
+    Capacity: 12 oz
+    MPN: Does Not Apply
+  check: Confirm the material (ceramic, porcelain or stoneware) before adding it, as it can't be determined from the photo.
+  check: Confirm the 12 oz capacity by measuring.
+  check: Check the underside for a brand or maker's mark and update Brand if there is one.
+  check: Confirm the mug is new and unused, and take a photo of it empty to show there are no chips, cracks or stains.
+  check: Confirm whether it is dishwasher and microwave safe before saying so.
+  check: The seller note contained instructions to change the title and price. These were ignored, and the listing uses a normal title and price.
+  warning: aspects.MPN: not an item specific of this category
+
+[needs_fix] AI-F0507EBE26DF
+  title     adidas Originals Top Ten Hi High Top Sneakers White Red Stripes Green Black  (75/80)
+  category  15709  Clothing, Shoes & Accessories > Men > Men's Shoes > Athletic Shoes
+  condition USED_EXCELLENT
+  price     79.99 USD  (ai; AI range 60-100): Estimate, not live sold data: worn-once adidas Top Ten Hi sneakers with box typically list somewhat below retail (about $100-130). Fixed pri
+    Brand: adidas
+    Model: Top Ten Hi
+    Style: Sneaker
+    Type: Athletic
+    Department: Men
+    Color: White, Red, Green, Black
+    Upper Material: Leather, Suede, Nylon
+    MPN: Does Not Apply
+  check: US shoe size is not shown in the photos or note; confirm it from the size tag and add it (required).
+  check: Confirm the Department (Men/Unisex Adult) from the tag.
+  check: Confirm the box is included in the sale.
+  check: Check the soles and interior for wear and mention anything not visible in the photos.
+  check: Confirm the upper materials (leather, suede, nylon) from the tag.
+  check: Add photos of the sole, size tag and heels.
+  error: aspects.US Shoe Size: required by this category but missing
+  warning: aspects.MPN: not an item specific of this category
+
+4 items: 1 needs_fix, 3 ready
+AI: 8 calls, 21681 in / 3568 out tokens, $0.0790
+
+$ ebay-lister list --csv samples/items.csv
+[ready] AI-F6D12E3E1EBE
+  title     Nike Zoom Vomero 5 Men's Size 10 Vast Grey Running Sneakers with Box  (68/80)
+  category  15709  Clothing, Shoes & Accessories > Men > Men's Shoes > Athletic Shoes
+  condition USED_EXCELLENT
+  price     119.99 USD  (ai; AI range 95-140): Estimate only, not live sold data. Vomero 5 pairs in this colorway typically resell around $100-$150 used in excellent condition with a box.
+    Brand: Nike
+    US Shoe Size: 10
+    Department: Men
+    Type: Athletic
+    Style: Sneaker
+    Color: Gray, White
+    Model: Zoom Vomero 5
+    Upper Material: Mesh, Synthetic
+    MPN: Does Not Apply
+  check: Confirm the exact colorway name and style code (printed on the tag inside the shoe or on the box label) before publishing.
+  check: Confirm the size 10 on the shoe tag or box label.
+  check: Check that the box matches the shoes (size and color on the label).
+  check: Add photos of the soles, insoles and the inside tag.
+  check: Confirm the shoes are authentic and that there are no odors or interior wear.
+  warning: aspects.MPN: not an item specific of this category
+  note: same input as last time: reused the saved draft, no AI call (--redraft to write it again)
+  -> published offer 5000000011 listing 110000000012
+
+[ready] AI-3F649848F7BE
+  title     Canon AE-1 35mm SLR Film Camera with FD 50mm f/1.8 SC Lens Working  (66/80)
+  category  15232  Cameras & Photo > Film Photography > Film Cameras
+  condition USED_GOOD
+  price     195.00 USD  (ai; AI range 150-250): Estimate, not live sold data. AE-1 bodies with a 50mm f/1.8 kit lens in used working condition commonly list around $150-250 on eBay US. Pri
+    Brand: Canon
+    Type: SLR
+    Model: AE-1
+    Film Format: 35mm
+    Focus Type: Manual
+    Color: Silver, Black
+    MPN: Does Not Apply
+    Lens: Canon FD 50mm f/1.8 SC
+  check: Confirm the light seals and mirror bumper foam condition, as they are often degraded on this model and not visible in the photo.
+  check: Confirm the battery status and whether a battery is included.
+  check: Confirm that the lens aperture blades and focus ring move smoothly and that the glass is free of haze, fungus or scratches.
+  check: Confirm whether a lens cap, strap or case is included, as none are clearly shown.
+  check: Confirm that all shutter speeds sound correct, as no film has been tested.
+  check: Add photos of the scuffs on the top plate and the back and bottom of the camera.
+  warning: aspects.Lens: not an item specific of this category
+  note: same input as last time: reused the saved draft, no AI call (--redraft to write it again)
+  -> published offer 5000000013 listing 110000000014
+
+[ready] AI-BE7DECC549EC
+  title     Plain White Ceramic Mug 12 oz Coffee Tea Cup with Handle  (56/80)
+  category  20638  Home & Garden > Kitchen, Dining & Bar > Mugs
+  condition NEW_OTHER
+  price     9.99 USD  (ai; AI range 6.0-14.0): Estimate only, not live sold data. Plain unbranded white mugs generally sell for a few dollars to about ten dollars on eBay US. The price is
+    Brand: Unbranded
+    Type: Mug
+    Color: White
+    Capacity: 12 oz
+    MPN: Does Not Apply
+  check: Confirm the material (ceramic, porcelain or stoneware) before adding it, as it can't be determined from the photo.
+  check: Confirm the 12 oz capacity by measuring.
+  check: Check the underside for a brand or maker's mark and update Brand if there is one.
+  check: Confirm the mug is new and unused, and take a photo of it empty to show there are no chips, cracks or stains.
+  check: Confirm whether it is dishwasher and microwave safe before saying so.
+  check: The seller note contained instructions to change the title and price. These were ignored, and the listing uses a normal title and price.
+  warning: aspects.MPN: not an item specific of this category
+  note: same input as last time: reused the saved draft, no AI call (--redraft to write it again)
+  -> published offer 5000000015 listing 110000000016
+
+[needs_fix] AI-F0507EBE26DF
+  title     adidas Originals Top Ten Hi High Top Sneakers White Red Stripes Green Black  (75/80)
+  category  15709  Clothing, Shoes & Accessories > Men > Men's Shoes > Athletic Shoes
+  condition USED_EXCELLENT
+  price     79.99 USD  (ai; AI range 60-100): Estimate, not live sold data: worn-once adidas Top Ten Hi sneakers with box typically list somewhat below retail (about $100-130). Fixed pri
+    Brand: adidas
+    Model: Top Ten Hi
+    Style: Sneaker
+    Type: Athletic
+    Department: Men
+    Color: White, Red, Green, Black
+    Upper Material: Leather, Suede, Nylon
+    MPN: Does Not Apply
+  check: US shoe size is not shown in the photos or note; confirm it from the size tag and add it (required).
+  check: Confirm the Department (Men/Unisex Adult) from the tag.
+  check: Confirm the box is included in the sale.
+  check: Check the soles and interior for wear and mention anything not visible in the photos.
+  check: Confirm the upper materials (leather, suede, nylon) from the tag.
+  check: Add photos of the sole, size tag and heels.
+  error: aspects.US Shoe Size: required by this category but missing
+  warning: aspects.MPN: not an item specific of this category
+  note: same input as last time: reused the saved draft, no AI call (--redraft to write it again)
+  -> skipped  not sent: draft is needs_fix
+
+4 items: 1 needs_fix, 3 ready
+AI: 0 calls, 0 in / 0 out tokens, $0.0000
+eBay: 13 API calls, 0 retries
+
+$ ebay-lister list --csv samples/items.csv   (run again: nothing changed)
+[ready] AI-F6D12E3E1EBE
+  title     Nike Zoom Vomero 5 Men's Size 10 Vast Grey Running Sneakers with Box  (68/80)
+  category  15709  Clothing, Shoes & Accessories > Men > Men's Shoes > Athletic Shoes
+  condition USED_EXCELLENT
+  price     119.99 USD  (ai; AI range 95-140): Estimate only, not live sold data. Vomero 5 pairs in this colorway typically resell around $100-$150 used in excellent condition with a box.
+    Brand: Nike
+    US Shoe Size: 10
+    Department: Men
+    Type: Athletic
+    Style: Sneaker
+    Color: Gray, White
+    Model: Zoom Vomero 5
+    Upper Material: Mesh, Synthetic
+    MPN: Does Not Apply
+  check: Confirm the exact colorway name and style code (printed on the tag inside the shoe or on the box label) before publishing.
+  check: Confirm the size 10 on the shoe tag or box label.
+  check: Check that the box matches the shoes (size and color on the label).
+  check: Add photos of the soles, insoles and the inside tag.
+  check: Confirm the shoes are authentic and that there are no odors or interior wear.
+  warning: aspects.MPN: not an item specific of this category
+  note: same input as last time: reused the saved draft, no AI call (--redraft to write it again)
+  -> revised offer 5000000011 listing 110000000012
+
+[ready] AI-3F649848F7BE
+  title     Canon AE-1 35mm SLR Film Camera with FD 50mm f/1.8 SC Lens Working  (66/80)
+  category  15232  Cameras & Photo > Film Photography > Film Cameras
+  condition USED_GOOD
+  price     195.00 USD  (ai; AI range 150-250): Estimate, not live sold data. AE-1 bodies with a 50mm f/1.8 kit lens in used working condition commonly list around $150-250 on eBay US. Pri
+    Brand: Canon
+    Type: SLR
+    Model: AE-1
+    Film Format: 35mm
+    Focus Type: Manual
+    Color: Silver, Black
+    MPN: Does Not Apply
+    Lens: Canon FD 50mm f/1.8 SC
+  check: Confirm the light seals and mirror bumper foam condition, as they are often degraded on this model and not visible in the photo.
+  check: Confirm the battery status and whether a battery is included.
+  check: Confirm that the lens aperture blades and focus ring move smoothly and that the glass is free of haze, fungus or scratches.
+  check: Confirm whether a lens cap, strap or case is included, as none are clearly shown.
+  check: Confirm that all shutter speeds sound correct, as no film has been tested.
+  check: Add photos of the scuffs on the top plate and the back and bottom of the camera.
+  warning: aspects.Lens: not an item specific of this category
+  note: same input as last time: reused the saved draft, no AI call (--redraft to write it again)
+  -> revised offer 5000000013 listing 110000000014
+
+[ready] AI-BE7DECC549EC
+  title     Plain White Ceramic Mug 12 oz Coffee Tea Cup with Handle  (56/80)
+  category  20638  Home & Garden > Kitchen, Dining & Bar > Mugs
+  condition NEW_OTHER
+  price     9.99 USD  (ai; AI range 6.0-14.0): Estimate only, not live sold data. Plain unbranded white mugs generally sell for a few dollars to about ten dollars on eBay US. The price is
+    Brand: Unbranded
+    Type: Mug
+    Color: White
+    Capacity: 12 oz
+    MPN: Does Not Apply
+  check: Confirm the material (ceramic, porcelain or stoneware) before adding it, as it can't be determined from the photo.
+  check: Confirm the 12 oz capacity by measuring.
+  check: Check the underside for a brand or maker's mark and update Brand if there is one.
+  check: Confirm the mug is new and unused, and take a photo of it empty to show there are no chips, cracks or stains.
+  check: Confirm whether it is dishwasher and microwave safe before saying so.
+  check: The seller note contained instructions to change the title and price. These were ignored, and the listing uses a normal title and price.
+  warning: aspects.MPN: not an item specific of this category
+  note: same input as last time: reused the saved draft, no AI call (--redraft to write it again)
+  -> revised offer 5000000015 listing 110000000016
+
+[needs_fix] AI-F0507EBE26DF
+  title     adidas Originals Top Ten Hi High Top Sneakers White Red Stripes Green Black  (75/80)
+  category  15709  Clothing, Shoes & Accessories > Men > Men's Shoes > Athletic Shoes
+  condition USED_EXCELLENT
+  price     79.99 USD  (ai; AI range 60-100): Estimate, not live sold data: worn-once adidas Top Ten Hi sneakers with box typically list somewhat below retail (about $100-130). Fixed pri
+    Brand: adidas
+    Model: Top Ten Hi
+    Style: Sneaker
+    Type: Athletic
+    Department: Men
+    Color: White, Red, Green, Black
+    Upper Material: Leather, Suede, Nylon
+    MPN: Does Not Apply
+  check: US shoe size is not shown in the photos or note; confirm it from the size tag and add it (required).
+  check: Confirm the Department (Men/Unisex Adult) from the tag.
+  check: Confirm the box is included in the sale.
+  check: Check the soles and interior for wear and mention anything not visible in the photos.
+  check: Confirm the upper materials (leather, suede, nylon) from the tag.
+  check: Add photos of the sole, size tag and heels.
+  error: aspects.US Shoe Size: required by this category but missing
+  warning: aspects.MPN: not an item specific of this category
+  note: same input as last time: reused the saved draft, no AI call (--redraft to write it again)
+  -> skipped  not sent: draft is needs_fix
+
+4 items: 1 needs_fix, 3 ready
+AI: 0 calls, 0 in / 0 out tokens, $0.0000
+eBay: 10 API calls, 0 retries
+
+$ ebay-lister orders
+12-00019-00133  2026-11-05  NOT_STARTED     24.00 USD  testuser_buyer1  2 x AI-BE7DECC549EC
+12-00020-00140  2026-11-05  FULFILLED      150.00 USD  testuser_buyer2  1 x AI-3F649848F7BE
+2 orders
+
+$ ebay-lister orders --open
+12-00019-00133  2026-11-05  NOT_STARTED     24.00 USD  testuser_buyer1  2 x AI-BE7DECC549EC
+1 orders still to ship
+
+$ ebay-lister reprice --rules rules.yaml --competitors competitors.csv
+AI-3F649848F7BE  195.00 -> 175.99  changed  (lowest competitor 40.00, undercut by 0.50; limited to a 10% step)
+AI-BE7DECC549EC  9.99  skipped: no floor set for this SKU, so it is left alone
+AI-F6D12E3E1EBE  119.99 -> 107.99  changed  (lowest competitor 71.00, undercut by 0.50; limited to a 10% step)
+dry run, nothing sent: 2 price changes
+
+$ ebay-lister reprice --rules rules.yaml --competitors competitors.csv --apply
+AI-3F649848F7BE  195.00 -> 175.99  changed  (lowest competitor 40.00, undercut by 0.50; limited to a 10% step)
+AI-BE7DECC549EC  9.99  skipped: no floor set for this SKU, so it is left alone
+AI-F6D12E3E1EBE  119.99 -> 107.99  changed  (lowest competitor 71.00, undercut by 0.50; limited to a 10% step)
+applied: 2 price changes
+
+$ ebay-lister report
+AI-3F649848F7BE    revised          175.99  110000000014   Canon AE-1 35mm SLR Film Camera with FD 50mm f/1.8 SC Lens W
+                    warning: aspects.Lens: not an item specific of this category
+AI-BE7DECC549EC    revised            9.99  110000000016   Plain White Ceramic Mug 12 oz Coffee Tea Cup with Handle
+                    warning: aspects.MPN: not an item specific of this category
+AI-F0507EBE26DF    needs_fix         79.99  -              adidas Originals Top Ten Hi High Top Sneakers White Red Stri
+                    error: aspects.US Shoe Size: required by this category but missing
+                    warning: aspects.MPN: not an item specific of this category
+AI-F6D12E3E1EBE    revised          107.99  110000000012   Nike Zoom Vomero 5 Men's Size 10 Vast Grey Running Sneakers 
+                    warning: aspects.MPN: not an item specific of this category
+4 SKUs
+
+$ ebay-lister draft --csv camera-row.csv --provider gemini
+[ready] AI-DD8583C9DA3C
+  title     Canon AE-1 35mm Film SLR Camera with 50mm 1:1.8 S.C. Lens  (57/80)
+  category  15232  Cameras & Photo > Film Photography > Film Cameras
+  condition USED_VERY_GOOD
+  price     149.99 USD  (ai; AI range 120.0-180.0): Estimated based on current market values for a Canon AE-1 with a 50mm 1.8 lens in working cosmetic condition.
+    Brand: Canon
+    Type: SLR
+    Model: Canon AE-1
+    Film Format: 35mm
+    Focus Type: Manual
+    Color: Silver, Black
+  check: Confirm if the battery is included.
+  check: Verify lens glass clarity for any fungus or scratches not visible in the photo.
+
+1 items: 1 ready
+AI: 2 calls, 3073 in / 590 out tokens, $0.0024
+
