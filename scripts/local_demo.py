@@ -2,7 +2,9 @@
 eBay sandbox mock (ebay_lister/mock_ebay.py) standing in for eBay.
 
 Runs the CLI exactly as a user would: setup, category lookup, a dry-run draft of the CSV, a real list run,
-the same list run again (nothing duplicated), orders, a repricing dry run and apply, and the report.
+a person approving what was held for review, the same list run again (nothing duplicated), orders, marking an
+order shipped with tracking (dry run, real, and again to show nothing is sent twice), a repricing dry run and
+apply, and the report.
 Writes what it printed to examples/local-run/. Needs ANTHROPIC_API_KEY (and GEMINI_API_KEY for the switch).
   python scripts/local_demo.py
 """
@@ -57,14 +59,23 @@ def main() -> None:
     run("draft", "--csv", str(csv_path), "--out", str(work / "prev"), show="draft --csv samples/items.csv   (dry run, nothing sent)")
     shutil.copy(work / "prev" / "drafts.json", OUT / "drafts-claude.json")
     run("list", "--csv", str(csv_path), "--out", str(work / "prev"), show="list --csv samples/items.csv")
-    run("list", "--csv", str(csv_path), "--out", str(work / "prev"), show="list --csv samples/items.csv   (run again: nothing changed)")
-
     skus = [i.sku for i in read_csv(csv_path)]
     nike, canon, mug = skus[0], skus[1], skus[2]
+    held = [d["sku"] for d in json.loads((work / "prev" / "drafts.json").read_text()) if d["status"] == "needs_review"]
+    if held:
+        run("approve", *held, show="approve " + " ".join(held) + "   (a person has read the held drafts)")
+    run("list", "--csv", str(csv_path), "--out", str(work / "prev"), show="list --csv samples/items.csv   (run again after review)")
     week = (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%S.000Z")
     fake.add_order(mug, "White mug", 12.0, created=week, quantity=2)
     fake.add_order(canon, "Canon AE-1", 150.0, status="FULFILLED", created=week, buyer="testuser_buyer2")
     run("orders")
+    run("orders", "--open")
+    open_order = next(o for o in fake.orders if o["orderFulfillmentStatus"] == "NOT_STARTED")["orderId"]
+    trk = "9400 1000 0000 0000 0000 00"  # as printed on the label; eBay wants letters and digits only
+    run("ship", open_order, "--carrier", "USPS", "--tracking", trk, "--dry-run",
+        show=f"ship {open_order} --carrier USPS --tracking '{trk}' --dry-run")
+    run("ship", open_order, "--carrier", "USPS", "--tracking", trk, show=f"ship {open_order} --carrier USPS --tracking '{trk}'")
+    run("ship", open_order, "--carrier", "USPS", "--tracking", trk, show=f"ship {open_order} --carrier USPS --tracking '{trk}'   (again)")
     run("orders", "--open")
 
     rules = {"defaults": {"undercut": 0.50, "max_step_pct": 10, "stale_days": 14, "stale_drop_pct": 5, "round_99": True},
@@ -93,6 +104,7 @@ def main() -> None:
                                                               "status": v.status, "listingId": v.listingId,
                                                               "price": v.body["pricingSummary"]["price"]["value"]}
                                                           for k, v in fake.offers.items()},
+               "shipping_fulfillments": fake.fulfillments,
                "delete_requests": sum(1 for m, _ in fake.log if m == "DELETE")}
     (OUT / "ebay-mock-state.json").write_text(json.dumps(summary, indent=2))
     (OUT / "terminal.txt").write_text("\n".join(transcript) + "\n")

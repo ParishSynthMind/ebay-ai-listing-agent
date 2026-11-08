@@ -16,6 +16,9 @@ Rules it enforces, because they are what trips people up on the real thing:
   Brand is missing...").
 - Business policies need the seller opted in to SELLING_POLICY_MANAGEMENT first.
 - getOrders pages with limit (max 200) and offset and supports filter=orderfulfillmentstatus:{A|B}.
+- createShippingFulfillment answers 201 with a Location header, refuses a bad order id (32100), line item (32200),
+  duplicate line item (32210), tracking without carrier or with spaces or hyphens (32300) and a bad date (32500),
+  then marks the line items FULFILLED and the order FULFILLED or IN_PROGRESS.
 - 429 (errorId 2002) and 500 (25001) can be injected to test backoff.
 """
 from __future__ import annotations
@@ -148,6 +151,7 @@ class FakeEbay:
     locations: dict = field(default_factory=dict)
     policies: dict = field(default_factory=lambda: {"fulfillment": {}, "payment": {}, "return": {}})
     orders: list = field(default_factory=list)
+    fulfillments: dict = field(default_factory=dict)     # orderId -> shipping fulfillments
     log: list = field(default_factory=list)              # (method, path) of every call
     inject: list = field(default_factory=list)           # FakeResponses returned before normal handling, in order
     _ids: itertools.count = field(default_factory=lambda: itertools.count(1))
@@ -205,7 +209,7 @@ class FakeEbay:
         if path.startswith("/sell/account/v1"):
             return self._account(method, path[len("/sell/account/v1"):], query, body)
         if path.startswith("/sell/fulfillment/v1"):
-            return self._fulfillment(method, path[len("/sell/fulfillment/v1"):], query, url)
+            return self._fulfillment(method, path[len("/sell/fulfillment/v1"):], query, url, body)
         return err(404, 0, f"mock has no route for {method} {path}")
 
     # --- OAuth -------------------------------------------------------------------
@@ -475,7 +479,10 @@ class FakeEbay:
         return err(404, 0, f"mock has no route for {method} /sell/account/v1{path}")
 
     # --- Fulfillment ---------------------------------------------------------------------------
-    def _fulfillment(self, method, path, q, url):
+    def _fulfillment(self, method, path, q, url, body=None):
+        m = re.fullmatch(r"/order/([^/]+)(/shipping_fulfillment(?:/([^/]+))?)?", path)
+        if m:
+            return self._order_route(method, m.group(1), m.group(2), m.group(3), body)
         if path != "/order" or method != "GET":
             return err(404, 0, f"mock has no route for {method} /sell/fulfillment/v1{path}")
         try:
@@ -500,3 +507,52 @@ class FakeEbay:
             nq = f"?limit={limit}&offset={offset + limit}" + (f"&filter={f}" if f else "")
             out["next"] = base + nq
         return FakeResponse(200, out)
+
+    def _order_route(self, method, order_id, sub, fid, body):
+        """getOrder, getShippingFulfillments, createShippingFulfillment, getShippingFulfillment. Error ids are the
+        ones eBay's fulfillment_api spec lists for these calls; 409 for a line item already shipped is the mock's guess."""
+        o = next((o for o in self.orders if o["orderId"] == order_id), None)
+        if o is None:
+            return err(400, 32100, f"Invalid Order Id: {order_id}", domain="API_FULFILLMENT")
+        if not sub:
+            return FakeResponse(200, copy.deepcopy(o)) if method == "GET" else err(404, 0, "no route", domain="API_FULFILLMENT")
+        done = self.fulfillments.setdefault(order_id, [])
+        if fid:
+            f = next((f for f in done if f["fulfillmentId"] == fid), None)
+            return FakeResponse(200, copy.deepcopy(f)) if f else err(404, 32110, f"Fulfillment {fid} not found", domain="API_FULFILLMENT")
+        if method == "GET":
+            return FakeResponse(200, {"fulfillments": copy.deepcopy(done), "total": len(done), "warnings": []})
+        if method != "POST":
+            return err(404, 0, f"mock has no route for {method} shipping_fulfillment", domain="API_FULFILLMENT")
+        b = body or {}
+        lines = b.get("lineItems") or []
+        if not lines:
+            return err(400, 32600, "Invalid input data", domain="API_FULFILLMENT", long="lineItems is required.")
+        ids = [li.get("lineItemId") for li in lines]
+        if len(set(ids)) != len(ids):
+            return err(400, 32210, "Duplicate line item in the request", domain="API_FULFILLMENT")
+        by_id = {li["lineItemId"]: li for li in o["lineItems"]}
+        for li in lines:
+            if li.get("lineItemId") not in by_id:
+                return err(400, 32200, f"Invalid line item id: {li.get('lineItemId')}", domain="API_FULFILLMENT")
+            qty = li.get("quantity", 1)
+            if not isinstance(qty, int) or qty < 1:
+                return err(400, 32600, "Invalid input data", domain="API_FULFILLMENT", long="quantity must be a whole number above 0.")
+        carrier, tracking = b.get("shippingCarrierCode"), b.get("trackingNumber")
+        if bool(carrier) != bool(tracking) or (tracking and not re.fullmatch(r"[A-Za-z0-9]+", tracking)):
+            return err(400, 32300, "Invalid shipment tracking number or carrier", domain="API_FULFILLMENT")
+        shipped = b.get("shippedDate") or "2026-11-08T09:00:00.000Z"
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z", shipped):
+            return err(400, 32500, "Invalid shipped date", domain="API_FULFILLMENT")
+        if any(by_id[i]["lineItemFulfillmentStatus"] == "FULFILLED" for i in ids):
+            return FakeResponse(409, {"errors": [{"errorId": 0, "domain": "API_FULFILLMENT", "category": "REQUEST",
+                                                  "message": "Conflict: line item already fulfilled"}]})
+        fid = tracking or str(999 + len(done))
+        done.append({"fulfillmentId": fid, "lineItems": copy.deepcopy(lines), "shipmentTrackingNumber": tracking,
+                     "shippingCarrierCode": carrier, "shippedDate": shipped})
+        for i in ids:
+            by_id[i]["lineItemFulfillmentStatus"] = "FULFILLED"
+        states = {li["lineItemFulfillmentStatus"] for li in o["lineItems"]}
+        o["orderFulfillmentStatus"] = "FULFILLED" if states == {"FULFILLED"} else "IN_PROGRESS"
+        loc = f"https://apiz.sandbox.ebay.com/sell/fulfillment/v1/order/{order_id}/shipping_fulfillment/{fid}"
+        return FakeResponse(201, {}, {"Location": loc})

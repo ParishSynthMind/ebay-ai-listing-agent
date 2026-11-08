@@ -1,11 +1,12 @@
 # eBay AI listing agent settings. No secrets here: keys come from the Keychain or the environment.
-environment: sandbox          # the only one this build allows
+environment: sandbox          # sandbox | production (production also needs EBAY_ALLOW_PRODUCTION=yes)
 marketplace: EBAY_US
 currency: USD
 ai:
   provider: claude            # claude | gemini
   model: null                 # null = the provider's default (claude-sonnet-5-5 / gemini-3.5-flash-lite)
   cost_cap_usd: 0.50          # a run stops before it passes this much AI spend
+max_new_listings_per_run: 25  # publishing stops here (each new listing can cost an insertion fee in production)
 state_dir: state              # local SQLite record, aspect cache, seller setup ids (git-ignored)
 
 # Used when eBay's category suggestion does not make sense for the item (eBay documents that

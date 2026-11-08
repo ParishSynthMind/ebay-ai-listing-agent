@@ -12,9 +12,51 @@ def oauth(fake, refresh=None, **kw):
     return EbayOAuth(fake, fake.client_id, fake.client_secret, fake.runame, refresh, clock=lambda: fake.now, **kw)
 
 
-def test_production_is_refused():
-    with pytest.raises(ValueError, match="sandbox"):
-        base_urls("production")
+def test_production_is_refused_without_the_second_switch():
+    with pytest.raises(ValueError, match="EBAY_ALLOW_PRODUCTION"):
+        base_urls("production", env={})
+    with pytest.raises(ValueError, match="EBAY_ALLOW_PRODUCTION"):
+        base_urls("production", env={"EBAY_ALLOW_PRODUCTION": "maybe"})
+
+
+def test_production_hosts_from_ebays_spec_when_both_switches_are_on():
+    u = base_urls("production", env={"EBAY_ALLOW_PRODUCTION": "yes"})
+    assert u == {"api": "https://api.ebay.com", "apiz": "https://apiz.ebay.com", "auth": "https://auth.ebay.com"}
+
+
+def test_unknown_environment_is_refused():
+    with pytest.raises(ValueError, match="sandbox or production"):
+        base_urls("staging", env={})
+
+
+def test_production_consent_url_and_token_endpoint():
+    class Rec:
+        def __init__(self):
+            self.urls = []
+
+        def request(self, method, url, **kw):
+            self.urls.append(url)
+            return FakeResponse(200, {"access_token": "t", "expires_in": 7200})
+
+    rec = Rec()
+    o = EbayOAuth(rec, "id", "secret", "Prod-RuName", environment="production", env={"EBAY_ALLOW_PRODUCTION": "1"})
+    assert o.consent_url().startswith("https://auth.ebay.com/oauth2/authorize?")
+    o.app_token()
+    assert rec.urls == ["https://api.ebay.com/identity/v1/oauth2/token"]
+
+
+def test_keychain_names_and_env_vars_are_separate_per_environment():
+    from ebay_lister import keychain
+
+    assert keychain.service("client_id") == "ebay-sandbox-client-id"
+    assert keychain.service("refresh_token", "production") == "ebay-production-refresh-token"
+    env = {"EBAY_CLIENT_ID": "sandbox-id"}
+    asked = []
+    look = lambda s: asked.append(s) or None  # noqa: E731
+    assert keychain.secret("client_id", env=env, lookup=look) == "sandbox-id"
+    assert keychain.secret("client_id", env=env, lookup=look, environment="production") is None
+    assert asked == ["ebay-production-client-id"]
+    assert keychain.secret("client_id", env={"EBAY_PROD_CLIENT_ID": "p"}, lookup=look, environment="production") == "p"
 
 
 def test_missing_keys_explain_where_they_go():

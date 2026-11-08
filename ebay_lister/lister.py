@@ -3,6 +3,10 @@ validation -> inventory item -> offer -> publish. Nothing is sent to eBay unless
 
 Re-running is safe: the SKU is stable, the inventory item is a PUT (create or replace), an existing offer for
 the SKU is updated instead of a second one being made, and an already published offer is revised in place.
+
+A draft the tool is not sure of (the model says low confidence, a policy wording warning, a wide price band, a
+category from the keyword map, or a seller note that tries to instruct the AI) is held as needs_review and only
+sent once a person runs `ebay-lister approve SKU`.
 """
 from __future__ import annotations
 
@@ -19,12 +23,14 @@ from typing import Optional
 from .api import MARKETPLACE, Account, Fulfillment, Inventory, Taxonomy
 from .http import EbayApiError
 from .llm import Drafter, load_image
+from .policy import check_wording, note_has_instructions
 from .repricing import PriceDecision, decide, last_sold
 from .sku import make_sku
 from .store import Store
 from .validate import CONDITIONS, TITLE_MAX, Problem, check_listing, errors
 
 ALLOWED_TAGS = {"p", "ul", "ol", "li", "b", "strong", "i", "em", "br", "h3", "h4", "table", "tr", "td", "th", "tbody"}
+DANGLING = {"with", "and", "for", "the", "a", "an", "of", "in", "on", "to", "or", "by", "plus", "&", "+"}
 STOP = {"the", "a", "an", "and", "for", "with", "of", "in", "on", "mens", "men", "womens", "women", "used", "new"}
 
 
@@ -46,14 +52,15 @@ class ItemInput:
 @dataclass
 class Draft:
     item: ItemInput
-    status: str                      # ready | needs_fix | needs_category | error
+    status: str                      # ready | needs_review | needs_fix | needs_category | error
     listing: dict = field(default_factory=dict)
     problems: list[Problem] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
+    review: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         return {"sku": self.item.sku, "status": self.status, "listing": self.listing,
-                "problems": [str(p) for p in self.problems], "notes": self.notes}
+                "problems": [str(p) for p in self.problems], "review": self.review, "notes": self.notes}
 
 
 @dataclass
@@ -136,8 +143,11 @@ def fit_title(title: str) -> tuple[str, bool]:
     t = " ".join((title or "").split())
     if len(t) <= TITLE_MAX:
         return t, False
-    cut = t[:TITLE_MAX + 1].rsplit(" ", 1)[0].rstrip(" ,-/|")
-    return cut[:TITLE_MAX], True
+    cut = t[:TITLE_MAX + 1].rsplit(" ", 1)[0].rstrip(" ,-/|&+")
+    words = cut.split(" ")
+    while len(words) > 1 and words[-1].lower() in DANGLING:  # "... Black with" reads as broken
+        words.pop()
+    return " ".join(words).rstrip(" ,-/|&+")[:TITLE_MAX], True
 
 
 def plain_text(desc_html: str, limit: int = 4000) -> str:
@@ -167,16 +177,41 @@ def input_hash(item: ItemInput) -> str:
     return h.hexdigest()[:16]
 
 
+# The model does not know the price when its high is more than twice its low AND the gap is real money
+# (a 5.99 to 12.99 band on a mug is normal; 60 to 160 on a camera is a guess).
+PRICE_BAND_MAX_RATIO = 2.0
+PRICE_BAND_MIN_GAP = 10.0
+
+
+def review_reasons(item: ItemInput, listing: dict, problems: list[Problem]) -> list[str]:
+    """Why a person should look at this draft before it goes live. Empty = the tool is sure enough."""
+    out = [f"wording: {p.message}" for p in problems if p.severity == "warning" and p.field.startswith("policy.")]
+    ai = listing.get("ai") or {}
+    if ai.get("confidence") == "low":
+        out.append("the AI says it is not sure of this item")
+    lo, hi = ai.get("price_low"), ai.get("price_high")
+    if ai.get("price_from") == "ai" and isinstance(lo, (int, float)) and isinstance(hi, (int, float)) and lo > 0 \
+            and hi / lo > PRICE_BAND_MAX_RATIO and hi - lo > PRICE_BAND_MIN_GAP:
+        out.append(f"wide price band {lo:g} to {hi:g}: the AI does not know the price well")
+    if listing.get("category_source") == "keyword_map":
+        out.append(f"category {listing.get('category_id')} came from the keyword map, not eBay: confirm it")
+    if note_has_instructions(item.note):
+        out.append("the seller note tries to give the AI instructions: check nothing in the draft followed them")
+    return out
+
+
 # --- the lister -------------------------------------------------------------------------
 class Lister:
     def __init__(self, taxonomy: Taxonomy, inventory: Inventory, drafter: Optional[Drafter], store: Store,
-                 setup: Optional[Setup] = None, category_map: Optional[dict] = None):
+                 setup: Optional[Setup] = None, category_map: Optional[dict] = None, max_publish: Optional[int] = None):
         self.taxonomy = taxonomy
         self.inventory = inventory
         self.drafter = drafter
         self.store = store
         self.setup = setup
         self.category_map = {k.lower(): str(v) for k, v in (category_map or {}).items()}
+        self.max_publish = max_publish  # new listings per run (each can cost an insertion fee in production)
+        self.published = 0
 
     def choose_category(self, query: str, product: str) -> tuple[Optional[dict], list[str]]:
         """eBay's suggestion if it makes sense for the item, else the keyword map, else None (a person picks).
@@ -196,7 +231,8 @@ class Lister:
         if mapped:
             kw, cid = mapped
             notes.append(f"category {cid} from the keyword map ({kw!r})")
-            return {"categoryId": cid, "categoryName": f"category {cid}", "path": f"category {cid} (keyword map)"}, notes
+            return {"categoryId": cid, "categoryName": f"category {cid}", "path": f"category {cid} (keyword map)",
+                    "source": "keyword_map"}, notes
         return None, notes
 
     def _mapped(self, query: str, product: str) -> Optional[tuple[str, str]]:
@@ -215,9 +251,10 @@ class Lister:
                 and saved["status"] not in ("error", "needs_category"):
             d.listing = json.loads(saved["draft"])
             aspects = self.taxonomy.aspects(d.listing["category_id"])
-            d.problems = check_listing(d.listing, aspects, item.floor, item.ceiling)
-            d.status = "needs_fix" if errors(d.problems) else "ready"
+            self._judge(d, aspects, ih)
             d.notes.append("same input as last time: reused the saved draft, no AI call (--redraft to write it again)")
+            if saved["status"] in ("needs_review", "needs_fix", "ready") and d.status != saved["status"]:
+                self.store.save(item.sku, d.status, d.listing, d.problems)
             return d
         try:
             images = [load_image(p) for p in item.photos]
@@ -225,7 +262,7 @@ class Lister:
                 raise RuntimeError("no AI provider configured")
             if item.category_id:
                 category = {"categoryId": item.category_id, "categoryName": f"category {item.category_id}",
-                            "path": f"category {item.category_id} (from the CSV)"}
+                            "path": f"category {item.category_id} (from the CSV)", "source": "csv"}
                 product = item.note
             else:
                 ident = self.drafter.identify(item.note, images)
@@ -241,8 +278,7 @@ class Lister:
             aspects = self.taxonomy.aspects(category["categoryId"])
             raw = self.drafter.draft(item.note, images, category, aspects, item.currency)
             d.listing = self.build_listing(item, category, raw, d.notes)
-            d.problems = check_listing(d.listing, aspects, item.floor, item.ceiling)
-            d.status = "needs_fix" if errors(d.problems) else "ready"
+            self._judge(d, aspects, ih)
         except EbayApiError as e:
             d.status = "error"
             d.notes.append(str(e))
@@ -251,9 +287,23 @@ class Lister:
             d.notes.append(f"{type(e).__name__}: {e}")
         live = saved and saved["status"] in ("published", "revised", "offer_ready")
         self.store.save(item.sku, saved["status"] if live and d.status == "ready" else d.status, d.listing, d.problems,
-                        input_hash=ih if d.status in ("ready", "needs_fix") else None)
+                        input_hash=ih if d.status in ("ready", "needs_review", "needs_fix") else None)
         self.store.event(item.sku, f"draft:{d.status}", "; ".join(map(str, d.problems))[:500])
         return d
+
+    def _judge(self, d: Draft, aspects: list[dict], ih: str) -> None:
+        """Validation + policy wording, then: errors -> needs_fix; unsure -> needs_review unless a person approved
+        this exact input; otherwise ready."""
+        d.problems = check_listing(d.listing, aspects, d.item.floor, d.item.ceiling) + check_wording(d.listing)
+        d.review = review_reasons(d.item, d.listing, d.problems)
+        if errors(d.problems):
+            d.status = "needs_fix"
+        elif d.review and not self.store.approved(d.item.sku, ih):
+            d.status = "needs_review"
+        else:
+            d.status = "ready"
+            if d.review:
+                d.notes.append("approved by a person for this input")
 
     def build_listing(self, item: ItemInput, category: dict, raw: dict, notes: list[str]) -> dict:
         title, cut = fit_title(raw.get("title", ""))
@@ -279,11 +329,13 @@ class Lister:
         condition = item.condition if item.condition in CONDITIONS else raw.get("condition")
         return {
             "sku": item.sku, "title": title, "category_id": category["categoryId"], "category_path": category.get("path", ""),
+            "category_source": category.get("source", "ebay"),
             "condition": condition, "condition_description": (raw.get("condition_description") or "").strip()[:1000],
             "aspects": aspects, "description_html": clean_html(raw.get("description_html", "")),
             "price": price, "currency": item.currency, "quantity": item.quantity, "image_urls": item.image_urls,
             "ai": {"price_reasoning": price_ai.get("reasoning", ""), "price_low": price_ai.get("low"),
                    "price_high": price_ai.get("high"), "check": raw.get("check", []),
+                   "confidence": raw.get("confidence", "medium"),
                    "price_from": "csv" if item.price is not None else "ai",
                    "provider": getattr(self.drafter, "provider", ""), "model": getattr(self.drafter, "model", "")},
         }
@@ -339,9 +391,16 @@ class Lister:
                 oid, published, listing_id = self._create_offer(offer), False, None
             res["offerId"] = oid
             was_live = published
+            if publish and not published and self.max_publish is not None and self.published >= self.max_publish:
+                res.update(status="offer_ready", error=f"publish cap of {self.max_publish} new listings this run reached; "
+                                                       "offer saved, run again to publish")
+                self.store.save(sku, "offer_ready", L, d.problems, oid)
+                self.store.event(sku, "publish_cap", res["error"])
+                return res
             if publish and not published:
                 listing_id = self.inventory.publish_offer(oid)
                 published = True
+                self.published += 1
             res.update(listingId=listing_id, status="revised" if was_live else "published" if published else "offer_ready")
             self.store.save(sku, res["status"], L, d.problems, oid, listing_id)
             self.store.event(sku, res["status"], f"offer {oid} listing {listing_id}")
@@ -366,9 +425,14 @@ class Lister:
 
 
 # --- seller setup (sandbox) ---------------------------------------------------------------
-def setup_sandbox(account: Account, inventory: Inventory, cfg: dict) -> tuple[Setup, list[str]]:
-    """Opt in to business policies, make one shipping, payment and return policy and one location if missing."""
+def setup_sandbox(account: Account, inventory: Inventory, cfg: dict, create: bool = True) -> tuple[Setup, list[str]]:
+    """Opt in to business policies, make one shipping, payment and return policy and one location if missing.
+
+    create=False (production): only find the seller's existing policies and location by the names in the config,
+    never make or change anything on a real account."""
     said = []
+    if not create:
+        return _find_existing(account, inventory, cfg)
     if "SELLING_POLICY_MANAGEMENT" not in account.opted_in():
         account.opt_in_policies()
         said.append("opted in to business policies (eBay says this can take a while to apply)")
@@ -391,6 +455,100 @@ def setup_sandbox(account: Account, inventory: Inventory, cfg: dict) -> tuple[Se
     else:
         said.append(f"inventory location {key!r} already there")
     return Setup(key, ids["fulfillment"], ids["payment"], ids["return"], mk), said
+
+
+def _find_existing(account: Account, inventory: Inventory, cfg: dict) -> tuple[Setup, list[str]]:
+    said, ids, missing = [], {}, []
+    if "SELLING_POLICY_MANAGEMENT" not in account.opted_in():
+        raise ValueError("production setup never creates anything, and this seller account is not opted in to "
+                         "business policies: opt in to business policies on the seller account and make them first")
+    for kind in ("fulfillment", "payment", "return"):
+        name = cfg["policies"][kind]["name"]
+        found = [p for p in account.policies(kind) if p.get("name") == name]
+        if found:
+            ids[kind] = found[0][f"{kind}PolicyId"]
+            said.append(f"using {kind} policy {name!r} ({ids[kind]})")
+        else:
+            missing.append(f"{kind} policy named {name!r}")
+    key = cfg["location"]["key"]
+    if inventory.get_location(key) is None:
+        missing.append(f"inventory location {key!r}")
+    if missing:
+        raise ValueError("production setup never creates anything; these are missing on the seller account: "
+                         + ", ".join(missing) + ". Put your own policy names in config/lister.yaml")
+    return Setup(key, ids["fulfillment"], ids["payment"], ids["return"], cfg.get("marketplace", MARKETPLACE)), said
+
+
+# --- marking orders shipped -------------------------------------------------------------------
+def clean_tracking(tracking: str) -> str:
+    """eBay only accepts letters and digits: spaces and hyphens from a label are removed, anything else is refused."""
+    t = re.sub(r"[\s-]", "", tracking or "")
+    if not re.fullmatch(r"[A-Za-z0-9]{4,40}", t):
+        raise ValueError(f"tracking number {tracking!r} must be letters and digits only")
+    return t
+
+
+def mark_shipped(fulfillment: Fulfillment, store: Store, order_id: str, carrier: str, tracking: str,
+                 line_item_ids: Optional[list[str]] = None, shipped_date: Optional[str] = None, apply: bool = True) -> dict:
+    """Mark an order's line items shipped with tracking. Safe to run twice: a fulfillment with the same tracking
+    number, or line items already shipped, are reported as already_shipped and nothing is sent."""
+    res = {"order_id": order_id, "status": "", "fulfillment_id": "", "line_items": [], "error": ""}
+    try:
+        t = clean_tracking(tracking)
+        carrier = (carrier or "").strip()
+        if not re.fullmatch(r"[A-Za-z0-9_]{2,40}", carrier):
+            raise ValueError(f"carrier {carrier!r} must be an eBay carrier code such as USPS, UPS or FedEx")
+        if shipped_date and not re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z", shipped_date):
+            raise ValueError("shipped date must be UTC ISO 8601, e.g. 2026-11-08T09:30:00.000Z")
+    except ValueError as e:
+        res.update(status="invalid", error=str(e))
+        return res
+    try:
+        order = fulfillment.get_order(order_id)
+        lines = {li["lineItemId"]: li for li in order.get("lineItems", [])}
+        wanted = line_item_ids or list(lines)
+        unknown = [i for i in wanted if i not in lines]
+        if unknown:
+            res.update(status="invalid", error=f"line item {unknown[0]} is not in order {order_id}")
+            return res
+        res["line_items"] = wanted
+        for f in fulfillment.shipping_fulfillments(order_id):
+            if (f.get("shipmentTrackingNumber") or f.get("fulfillmentId")) == t:
+                res.update(status="already_shipped", fulfillment_id=f["fulfillmentId"])
+                return res
+        todo = [i for i in wanted if lines[i].get("lineItemFulfillmentStatus") != "FULFILLED"]
+        if not todo:
+            res.update(status="already_shipped", error="every line item is already marked shipped")
+            return res
+        body = {"lineItems": [{"lineItemId": i, "quantity": int(lines[i].get("quantity", 1))} for i in todo],
+                "shippingCarrierCode": carrier, "trackingNumber": t}
+        if shipped_date:
+            body["shippedDate"] = shipped_date
+        res["line_items"] = todo
+        if not apply:
+            res.update(status="dry_run", body=body)
+            return res
+        fid = fulfillment.create_shipping_fulfillment(order_id, body)
+        res.update(status="shipped", fulfillment_id=fid)
+        store.shipped(order_id, t, carrier, fid)
+        for i in todo:
+            store.event(lines[i].get("sku") or "", "shipped", f"order {order_id} {carrier} {t}")
+    except EbayApiError as e:
+        res.update(status="ebay_error", error="; ".join(f"{i}: {m}" for i, m in zip(e.error_ids, e.messages())))
+    return res
+
+
+def read_shipments(path: Path) -> list[dict]:
+    """Columns: order_id, carrier, tracking, and optional line_item_id (; separated) and shipped_date."""
+    out = []
+    with open(path, newline="", encoding="utf-8-sig") as f:
+        for row in csv.DictReader(f):
+            row = {k.strip().lower(): (v or "").strip() for k, v in row.items() if k}
+            if row.get("order_id"):
+                out.append({"order_id": row["order_id"], "carrier": row.get("carrier", ""), "tracking": row.get("tracking", ""),
+                            "line_item_ids": [i for i in row.get("line_item_id", "").split(";") if i] or None,
+                            "shipped_date": row.get("shipped_date") or None})
+    return out
 
 
 # --- repricing ----------------------------------------------------------------------------------

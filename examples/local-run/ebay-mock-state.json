@@ -1,17 +1,18 @@
 {
   "ebay_calls_by_api": {
-    "POST /identity/v1": 14,
+    "POST /identity/v1": 18,
     "GET /sell/account/v1": 5,
     "POST /sell/account/v1": 4,
-    "GET /sell/inventory/v1": 13,
+    "GET /sell/inventory/v1": 12,
     "POST /sell/inventory/v1": 7,
     "GET /commerce/taxonomy/v1": 15,
-    "PUT /sell/inventory/v1": 11,
-    "GET /sell/fulfillment/v1": 4
+    "PUT /sell/inventory/v1": 9,
+    "GET /sell/fulfillment/v1": 11,
+    "POST /sell/fulfillment/v1": 1
   },
   "listings": {
     "5000000011": {
-      "title": "Nike Zoom Vomero 5 Men's Size 10 Vast Grey Running Sneakers with Box",
+      "title": "Nike Zoom Vomero 5 Men's Running Sneakers US 10 Gray White Mesh With Box",
       "status": "PUBLISHED",
       "listingId": "110000000012",
       "price": "107.99"
@@ -20,14 +21,30 @@
       "title": "Canon AE-1 35mm SLR Film Camera with FD 50mm f/1.8 SC Lens Working",
       "status": "PUBLISHED",
       "listingId": "110000000014",
-      "price": "175.99"
+      "price": "157.99"
     },
-    "5000000015": {
-      "title": "Plain White Ceramic Mug 12 oz Coffee Tea Cup with Handle",
+    "5000000017": {
+      "title": "White Ceramic Mug Plain Glossy Finish 12 oz Coffee Tea Cup with Handle",
       "status": "PUBLISHED",
-      "listingId": "110000000016",
+      "listingId": "110000000018",
       "price": "9.99"
     }
+  },
+  "shipping_fulfillments": {
+    "12-00019-00133": [
+      {
+        "fulfillmentId": "9400100000000000000000",
+        "lineItems": [
+          {
+            "lineItemId": "190001",
+            "quantity": 2
+          }
+        ],
+        "shipmentTrackingNumber": "9400100000000000000000",
+        "shippingCarrierCode": "USPS",
+        "shippedDate": "2026-11-08T09:00:00.000Z"
+      }
+    ]
   },
   "delete_requests": 0
 }

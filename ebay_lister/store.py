@@ -12,6 +12,9 @@ CREATE TABLE IF NOT EXISTS listings (
   offer_id TEXT, listing_id TEXT, first_listed TEXT, updated TEXT, draft TEXT, problems TEXT, input_hash TEXT
 );
 CREATE TABLE IF NOT EXISTS events (at TEXT, sku TEXT, what TEXT, detail TEXT);
+CREATE TABLE IF NOT EXISTS approvals (sku TEXT PRIMARY KEY, input_hash TEXT, at TEXT);
+CREATE TABLE IF NOT EXISTS shipments (order_id TEXT, tracking TEXT, carrier TEXT, fulfillment_id TEXT, at TEXT,
+  PRIMARY KEY (order_id, tracking));
 """
 
 
@@ -57,3 +60,22 @@ class Store:
     def events(self, sku: str | None = None) -> list[dict]:
         q = "SELECT * FROM events" + (" WHERE sku=?" if sku else "") + " ORDER BY rowid"
         return [dict(r) for r in self.db.execute(q, (sku,) if sku else ())]
+
+    def approve(self, sku: str) -> bool:
+        """A person has checked this draft. The approval is tied to the input it was drafted from, so a changed
+        row needs a fresh look."""
+        row = self.get(sku)
+        if not row or not row.get("input_hash"):
+            return False
+        self.db.execute("INSERT OR REPLACE INTO approvals VALUES (?,?,?)", (sku, row["input_hash"], now_iso()))
+        self.db.commit()
+        return True
+
+    def approved(self, sku: str, input_hash: str) -> bool:
+        r = self.db.execute("SELECT input_hash FROM approvals WHERE sku=?", (sku,)).fetchone()
+        return bool(r and r[0] == input_hash)
+
+    def shipped(self, order_id: str, tracking: str, carrier: str, fulfillment_id: str) -> None:
+        self.db.execute("INSERT OR REPLACE INTO shipments VALUES (?,?,?,?,?)",
+                        (order_id, tracking, carrier, fulfillment_id, now_iso()))
+        self.db.commit()

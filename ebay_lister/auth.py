@@ -6,11 +6,14 @@
   token (2 hours) and a refresh token (about 18 months). After that the access token is
   renewed from the refresh token with no browser.
 
-Sandbox only: this build refuses the production endpoints.
+Sandbox by default. Production (real listings, real eBay fees) needs BOTH `environment: production` in the
+config AND EBAY_ALLOW_PRODUCTION=yes in the environment, so a copied config alone can never list for real.
+The production hosts come from eBay's own OpenAPI specs (servers and the OAuth securitySchemes).
 """
 from __future__ import annotations
 
 import base64
+import os
 import time
 from dataclasses import dataclass
 from typing import Callable, Optional
@@ -33,10 +36,24 @@ USER_SCOPES = [
 EARLY = 300  # renew five minutes before eBay says the token expires
 
 
-def base_urls(environment: str = "sandbox") -> dict:
-    if environment != "sandbox":
-        raise ValueError("this build only talks to the eBay sandbox; production is switched off on purpose")
-    return SANDBOX
+PRODUCTION = {
+    "api": "https://api.ebay.com",
+    "apiz": "https://apiz.ebay.com",
+    "auth": "https://auth.ebay.com",
+}
+ALLOW_ENV = "EBAY_ALLOW_PRODUCTION"
+
+
+def base_urls(environment: str = "sandbox", env=None) -> dict:
+    env = os.environ if env is None else env
+    if environment == "sandbox":
+        return SANDBOX
+    if environment == "production":
+        if str(env.get(ALLOW_ENV, "")).lower() not in ("yes", "1", "true"):
+            raise ValueError(f"production lists real items with real eBay fees: set {ALLOW_ENV}=yes as well as "
+                             "environment: production to switch it on")
+        return PRODUCTION
+    raise ValueError(f"environment must be sandbox or production, not {environment!r}")
 
 
 @dataclass
@@ -51,15 +68,17 @@ class Token:
 class EbayOAuth:
     def __init__(self, session, client_id: str, client_secret: str, runame: str = "",
                  refresh_token: Optional[str] = None, environment: str = "sandbox",
-                 clock: Callable[[], float] = time.time, save_refresh_token: Optional[Callable[[str], None]] = None):
+                 clock: Callable[[], float] = time.time, save_refresh_token: Optional[Callable[[str], None]] = None,
+                 env=None):
         if not client_id or not client_secret:
-            raise ValueError("eBay client id and client secret are needed (Keychain ebay-sandbox-client-id / -secret)")
+            raise ValueError(f"eBay client id and client secret are needed (Keychain ebay-{environment}-client-id / -secret)")
         self.session = session
         self.client_id = client_id
         self.client_secret = client_secret
         self.runame = runame
         self.refresh_token = refresh_token
-        self.urls = base_urls(environment)
+        self.environment = environment
+        self.urls = base_urls(environment, env)
         self.clock = clock
         self.save_refresh_token = save_refresh_token
         self._app: Optional[Token] = None
@@ -93,7 +112,7 @@ class EbayOAuth:
     # --- user token ------------------------------------------------------------
     def consent_url(self, state: str = "", scopes: list[str] = USER_SCOPES) -> str:
         if not self.runame:
-            raise ValueError("a RuName is needed for the consent page (Keychain ebay-sandbox-runame)")
+            raise ValueError(f"a RuName is needed for the consent page (Keychain ebay-{self.environment}-runame)")
         q = {"client_id": self.client_id, "redirect_uri": self.runame, "response_type": "code", "scope": " ".join(scopes)}
         if state:
             q["state"] = state

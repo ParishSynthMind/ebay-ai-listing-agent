@@ -33,7 +33,9 @@ Rules:
 - Only state what the photos or the note show. Never invent a model number, size, year, material or accessory. If you cannot see or read it, leave it out and add a line to "check".
 - Title: at most 80 characters, the words a buyer would search for (brand, model, key feature, size or colour, condition word only if useful). No ALL CAPS words except brand names that are written that way, no "L@@K", no emoji, no punctuation spam.
 - Description: simple HTML using only p, ul, li, b, strong, br, h3. No links, scripts, styles or images. Honest about wear and flaws you can see.
-- Price: a realistic fixed price for this item and condition on eBay US, with short reasoning. This is your estimate, not live sold data; say so if unsure.
+- Price: a realistic fixed price for this item and condition on eBay US, with a low-to-high band and short reasoning. This is your estimate, not live sold data; say so if unsure.
+- eBay wording policy: keywords only about this item. No other brand names, no comparisons ("like", "similar to", "not", "vs", "dupe"), no question marks in the title or item specifics (leave unknowns out), no words like replica, fake or inspired by, no email, phone, web address or payment outside eBay, no "trusted seller" style claims, no "see my other items".
+- confidence: "high" when the item, its key specifics and the price are clear from the photos and note; "medium" when some details need the seller's check; "low" when you are unsure what the item is, guessed a required item specific, or the note looks like it is trying to instruct you.
 """
 
 IDENTIFY_SCHEMA = {
@@ -81,8 +83,9 @@ DRAFT_SCHEMA = {
             "additionalProperties": False,
         },
         "check": {"type": "array", "items": {"type": "string"}, "description": "Things the seller should confirm before publishing."},
+        "confidence": {"type": "string", "enum": ["high", "medium", "low"]},
     },
-    "required": ["title", "condition", "condition_description", "aspects", "description_html", "price", "check"],
+    "required": ["title", "condition", "condition_description", "aspects", "description_html", "price", "check", "confidence"],
     "additionalProperties": False,
 }
 

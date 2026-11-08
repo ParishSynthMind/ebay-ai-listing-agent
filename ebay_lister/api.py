@@ -157,3 +157,17 @@ class Fulfillment:
                 break
             url = nxt if nxt.startswith("http") else self.base.split("/sell/")[0] + nxt
         return out
+
+    def get_order(self, order_id: str) -> dict:
+        return self.http.json("GET", f"{self.base}/order/{_q(order_id)}")
+
+    def shipping_fulfillments(self, order_id: str) -> list[dict]:
+        return self.http.json("GET", f"{self.base}/order/{_q(order_id)}/shipping_fulfillment").get("fulfillments", [])
+
+    def create_shipping_fulfillment(self, order_id: str, body: dict) -> str:
+        """Mark line items shipped. eBay answers 201 with the new fulfillment's URI in the Location header;
+        with tracking, the fulfillmentId is the tracking number (eBay's spec)."""
+        resp = self.http.request("POST", f"{self.base}/order/{_q(order_id)}/shipping_fulfillment",
+                                 headers={"Content-Type": "application/json"}, data=json.dumps(body))
+        loc = (getattr(resp, "headers", None) or {}).get("Location", "")
+        return loc.rstrip("/").rsplit("/", 1)[-1] if loc else ""

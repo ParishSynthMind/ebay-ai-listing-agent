@@ -1,6 +1,6 @@
 # eBay facts the mock is built on
 
-Checked on 6 November 2026. "Spec" means eBay's published OpenAPI files: `inventory_api.json` v1.18.8, `taxonomy_api.json` v1.1.1, `account_api_v1.json` v1.9.3 and `fulfillment_api.json` v1.20.7, all from developer.ebay.com/develop/api/spec/.
+Checked on 6 November 2026; the shipping, production and policy rows added on 8 November 2026. "Spec" means eBay's published OpenAPI files: `inventory_api.json` v1.18.8, `taxonomy_api.json` v1.1.1, `account_api_v1.json` v1.9.3 and `fulfillment_api.json` v1.20.7, all from developer.ebay.com/develop/api/spec/.
 
 ## Confirmed from the specs
 
@@ -18,6 +18,17 @@ Checked on 6 November 2026. "Spec" means eBay's published OpenAPI files: `invent
 | Fulfillment API is served from `apiz.ebay.com` (sandbox `apiz.sandbox.ebay.com`), not `api.ebay.com`; getOrders `limit` max 200, default 50; filter `orderfulfillmentstatus:{NOT_STARTED|IN_PROGRESS}`; paged with `next` | `api.Fulfillment` |
 | Scopes: api_scope, sell.inventory, sell.account, sell.fulfillment | `auth.py` |
 | 429 is errorId 2002 "The request limit has been reached for the resource." | backoff tests |
+| createShippingFulfillment: `POST /order/{orderId}/shipping_fulfillment`, body `lineItems` [{lineItemId, quantity}], `shippedDate` (UTC ISO 8601, defaults to now), `shippingCarrierCode`, `trackingNumber`; 201 with the new fulfillment's URI in the `Location` header (fulfillment_api.json v1.20.7, read 8 Nov) | `api.Fulfillment.create_shipping_fulfillment` |
+| Carrier and tracking are "mutually dependent. If you include one, you must also include the other"; "Only alphanumeric characters are supported for shipment tracking numbers. Spaces, hyphens, and all other special characters are not supported"; with tracking, the fulfillmentId is the tracking number, without it "an arbitrary number such as 999" | `lister.clean_tracking`, mock |
+| createShippingFulfillment errors: 32100 invalid order id, 32200 invalid line item id, 32210 duplicate line item, 32300 invalid tracking number or carrier, 32400 user suspended, 32500 invalid shipped date, 32600 invalid input data, 34100 too many tracking numbers, 34500 "use PUT for updating", 30500 system error; 409 Conflict is listed with no error ids | mock, shipping tests |
+| getShippingFulfillments returns `{fulfillments, total, warnings}`; a fulfillment has fulfillmentId, lineItems, shipmentTrackingNumber, shippedDate | idempotent re-runs of `ship` |
+| Production hosts: `https://api.ebay.com` and `https://apiz.ebay.com` (servers list), consent `https://auth.ebay.com/oauth2/authorize`, token `https://api.ebay.com/identity/v1/oauth2/token` (the spec's OAuth securitySchemes) | `auth.PRODUCTION` |
+
+## eBay's listing policies (ebay.com help pages)
+
+Read on the day (8 Nov), search manipulation policy (help id 4243): "Using keywords that are not directly related to the item for sale is not allowed", "Listings that make comparisons with other products are not allowed", "Listings that promote other listings are not allowed", "Listings can't include keywords with question marks" (leave an unknown detail out). Third-party endorsements policy (help id 4249): claims like "Buy with confidence from a trusted seller" are not allowed; checkable claims ("over 1,000 positive feedback ratings") are. These are the rules behind `policy.py`'s question mark, comparison, other-brand, promotion and endorsement checks.
+
+Not readable from here on the day (eBay's pages answered with a bot check or opened another article), so taken from eBay's policies as commonly quoted: the counterfeit/replica policy (replica, knock-off, "inspired by"), the links policy and the policy on offers to buy or sell outside eBay (contact details, web addresses, payment outside eBay). The exact thresholds for shouting, filler words and repeated keywords are this tool's own.
 
 ## The mock's best guess (eBay's pages were not readable from here)
 
@@ -28,3 +39,6 @@ These come from eBay's documentation as commonly quoted, not from a page read on
 - The errorId when a second offer is created for the same SKU (the mock uses 25002 "Offer entity already exists." with the offerId as a parameter; the code only relies on the offerId parameter and falls back to raising).
 - getOffers answering 404 / 25713 when a SKU has no offer yet (the client treats 404 as "no offers").
 - Daily call limits.
+- The error body for a second createShippingFulfillment on a line item that is already shipped (the spec lists 409 Conflict with no error ids; the mock answers 409 with errorId 0). The tool avoids it by reading the order's fulfillments and line item statuses first.
+- The mock's error ids for getShippingFulfillment of an unknown fulfillment (32110) and for a bad limit or filter on getOrders (30700, 30800).
+- Whether every carrier code eBay accepts matches `[A-Za-z0-9_]` (eBay points to the Trading API's GeteBayDetails for the list).
