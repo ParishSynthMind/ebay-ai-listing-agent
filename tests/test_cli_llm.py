@@ -66,8 +66,8 @@ def test_consent_and_exchange_from_the_redirect_url(cfg, fake, tmp_path, capsys)
 
 def test_categories_and_aspects(run):
     code, out = run("categories", "35mm film camera")
-    assert "15232" in out and "Cameras & Photo > Film Photography > Film Cameras" in out
-    code, out = run("aspects", "15232")
+    assert "15230" in out and "Cameras & Photo > Film Photography > Film Cameras" in out
+    code, out = run("aspects", "15709")
     assert "REQUIRED Brand" in out and "SELECTION_ONLY" in out
 
 
@@ -204,5 +204,5 @@ def test_load_image_shrinks_big_photos(tmp_path):
 def test_aspect_brief_lists_required_first_with_closed_values():
     b = aspect_brief(CATEGORIES["15709"]["aspects"]).splitlines()
     assert b[0].startswith("- Brand [REQUIRED")
-    assert any("Department [REQUIRED; one value" in x and "ONLY these values: Men, Women, Unisex Adult" in x for x in b)
+    assert any("Department [REQUIRED; one value" in x and "ONLY these values: Men, Teens, Unisex Adults" in x for x in b)
     assert b[-1].startswith("- Shoe Width [optional")

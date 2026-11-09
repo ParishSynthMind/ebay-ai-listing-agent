@@ -86,7 +86,7 @@ def build(cfg: dict, session=None, secrets=None, sleep=None) -> Ctx:
         state = ROOT / state
     mk = cfg.get("marketplace", "EBAY_US")
     return Ctx(cfg, oauth, Taxonomy(app_http, urls["api"], state / "cache", marketplace=mk), Inventory(user_http, urls["api"]),
-               Account(user_http, urls["api"], mk), Fulfillment(user_http, urls["apiz"]),
+               Account(user_http, urls["api"], mk), Fulfillment(user_http, urls["api"]),
                Store(state / "listings.db"), state, app_http, user_http)
 
 

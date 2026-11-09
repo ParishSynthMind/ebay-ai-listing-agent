@@ -13,7 +13,7 @@ ASPECTS = CATEGORIES["15709"]["aspects"]
 def good(**over):
     L = {"title": "Nike Pegasus 40 Mens Running Shoes Size 10", "category_id": "15709", "condition": "USED_EXCELLENT",
          "aspects": {"Brand": ["Nike"], "US Shoe Size": ["10"], "Department": ["Men"], "Type": ["Athletic"],
-                     "Style": ["Running Shoe"], "Color": ["Blue", "White"]},
+                     "Style": ["Modern"], "Color": ["Blue"]},
          "description_html": "<p>Worn twice.</p>", "price": 62.0, "currency": "USD", "quantity": 1,
          "image_urls": ["https://i.example.com/a.jpg"]}
     L.update(over)
@@ -47,7 +47,7 @@ def test_blank_values_count_as_missing():
 
 def test_selection_only_value_must_be_from_the_list():
     L = good()
-    L["aspects"]["US Shoe Size"] = ["10 UK"]
+    L["aspects"]["Department"] = ["Women"]  # men's Athletic Shoes takes only Men, Teens, Unisex Adults
     assert "not one of this category's values" in msgs(L)[0]
 
 

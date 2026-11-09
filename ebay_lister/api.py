@@ -1,6 +1,6 @@
 """Thin clients for the four eBay REST APIs this tool uses. Each method is one documented call.
 
-Taxonomy uses the application token; Inventory, Account and Fulfillment use the seller's user token.
+Taxonomy (and the Metadata API's condition lists) use the application token; Inventory, Account and Fulfillment use the seller's user token.
 """
 from __future__ import annotations
 
@@ -11,6 +11,7 @@ from typing import Optional
 from urllib.parse import quote
 
 from .http import EbayApiError, EbayHttp
+from .validate import CONDITION_IDS
 
 MARKETPLACE = "EBAY_US"
 LANG = {"Content-Language": "en-US", "Content-Type": "application/json"}
@@ -21,12 +22,13 @@ def _q(s: str) -> str:
 
 
 class Taxonomy:
-    """Category suggestions and the item specifics (aspects) each category wants. Aspects are cached on disk."""
+    """Category suggestions, the item specifics (aspects) and the conditions each category takes. Cached on disk."""
 
     def __init__(self, http: EbayHttp, base: str, cache_dir: Optional[Path] = None, cache_days: float = 7.0,
                  marketplace: str = MARKETPLACE):
         self.http = http
         self.base = base + "/commerce/taxonomy/v1"
+        self.metadata = base + "/sell/metadata/v1"
         self.cache_dir = Path(cache_dir) if cache_dir else None
         self.cache_seconds = cache_days * 86400
         self.marketplace = marketplace
@@ -47,17 +49,35 @@ class Taxonomy:
                         "path": " > ".join([*path, s["category"]["categoryName"]])})
         return out
 
-    def aspects(self, category_id: str) -> list[dict]:
-        cache = self.cache_dir / f"aspects-{self.tree_id()}-{category_id}.json" if self.cache_dir else None
+    def _cached(self, name: str, fetch):
+        cache = self.cache_dir / name if self.cache_dir else None
         if cache and cache.exists() and time.time() - cache.stat().st_mtime < self.cache_seconds:
             return json.loads(cache.read_text())
-        body = self.http.json("GET", f"{self.base}/category_tree/{self.tree_id()}/get_item_aspects_for_category"
-                                     f"?category_id={_q(category_id)}")
-        aspects = body.get("aspects", [])
+        out = fetch()
         if cache:
             cache.parent.mkdir(parents=True, exist_ok=True)
-            cache.write_text(json.dumps(aspects))
-        return aspects
+            cache.write_text(json.dumps(out))
+        return out
+
+    def aspects(self, category_id: str) -> list[dict]:
+        return self._cached(f"aspects-{self.tree_id()}-{category_id}.json", lambda: self.http.json(
+            "GET", f"{self.base}/category_tree/{self.tree_id()}/get_item_aspects_for_category"
+                   f"?category_id={_q(category_id)}").get("aspects", []))
+
+    def conditions(self, category_id: str) -> list[dict]:
+        """The conditions a category accepts, as [{"enum": "USED_EXCELLENT", "name": "Used"}] (Metadata API
+        getItemConditionPolicies). Found live: Film Cameras takes no USED_GOOD, only plain "Used" (3000)."""
+        def fetch():
+            body = self.http.json("GET", f"{self.metadata}/marketplace/{self.marketplace}/get_item_condition_policies"
+                                         f"?filter={_q('categoryIds:{' + str(category_id) + '}')}")
+            out = []
+            for pol in body.get("itemConditionPolicies", []):
+                for c in pol.get("itemConditions", []):
+                    enum = CONDITION_IDS.get(str(c.get("conditionId")))
+                    if enum and enum not in [o["enum"] for o in out]:
+                        out.append({"enum": enum, "name": c.get("conditionDescription", "")})
+            return out
+        return self._cached(f"conditions-{self.marketplace}-{category_id}.json", fetch)
 
 
 class Inventory:

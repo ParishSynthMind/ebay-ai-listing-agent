@@ -251,7 +251,7 @@ class Lister:
                 and saved["status"] not in ("error", "needs_category"):
             d.listing = json.loads(saved["draft"])
             aspects = self.taxonomy.aspects(d.listing["category_id"])
-            self._judge(d, aspects, ih)
+            self._judge(d, aspects, ih, self._conditions(d.listing["category_id"], d.notes))
             d.notes.append("same input as last time: reused the saved draft, no AI call (--redraft to write it again)")
             if saved["status"] in ("needs_review", "needs_fix", "ready") and d.status != saved["status"]:
                 self.store.save(item.sku, d.status, d.listing, d.problems)
@@ -276,9 +276,10 @@ class Lister:
                     self.store.event(item.sku, "draft:needs_category", product)
                     return d
             aspects = self.taxonomy.aspects(category["categoryId"])
-            raw = self.drafter.draft(item.note, images, category, aspects, item.currency)
-            d.listing = self.build_listing(item, category, raw, d.notes)
-            self._judge(d, aspects, ih)
+            conditions = self._conditions(category["categoryId"], d.notes)
+            raw = self.drafter.draft(item.note, images, {**category, "conditions": conditions}, aspects, item.currency)
+            d.listing = self.build_listing(item, category, raw, d.notes, aspects)
+            self._judge(d, aspects, ih, conditions)
         except EbayApiError as e:
             d.status = "error"
             d.notes.append(str(e))
@@ -291,10 +292,18 @@ class Lister:
         self.store.event(item.sku, f"draft:{d.status}", "; ".join(map(str, d.problems))[:500])
         return d
 
-    def _judge(self, d: Draft, aspects: list[dict], ih: str) -> None:
+    def _conditions(self, category_id: str, notes: list[str]) -> Optional[list[dict]]:
+        """The category's accepted conditions; None if eBay would not say (then only the enum itself is checked)."""
+        try:
+            return self.taxonomy.conditions(category_id) or None
+        except EbayApiError as e:
+            notes.append(f"could not read the category's conditions: {e}")
+            return None
+
+    def _judge(self, d: Draft, aspects: list[dict], ih: str, conditions: Optional[list[dict]] = None) -> None:
         """Validation + policy wording, then: errors -> needs_fix; unsure -> needs_review unless a person approved
         this exact input; otherwise ready."""
-        d.problems = check_listing(d.listing, aspects, d.item.floor, d.item.ceiling) + check_wording(d.listing)
+        d.problems = check_listing(d.listing, aspects, d.item.floor, d.item.ceiling, conditions) + check_wording(d.listing)
         d.review = review_reasons(d.item, d.listing, d.problems)
         if errors(d.problems):
             d.status = "needs_fix"
@@ -305,7 +314,8 @@ class Lister:
             if d.review:
                 d.notes.append("approved by a person for this input")
 
-    def build_listing(self, item: ItemInput, category: dict, raw: dict, notes: list[str]) -> dict:
+    def build_listing(self, item: ItemInput, category: dict, raw: dict, notes: list[str],
+                      category_aspects: Optional[list[dict]] = None) -> dict:
         title, cut = fit_title(raw.get("title", ""))
         if cut:
             notes.append(f"title shortened to {TITLE_MAX} characters at a word break")
@@ -316,6 +326,15 @@ class Lister:
             if name and vals:
                 aspects.setdefault(name, [])
                 aspects[name] += [v for v in vals if v not in aspects[name]]
+        check = list(raw.get("check", []))
+        single = {x["localizedAspectName"] for x in category_aspects or []
+                  if x.get("aspectConstraint", {}).get("itemToAspectCardinality") == "SINGLE"}
+        for name in single & aspects.keys():
+            if len(aspects[name]) > 1:  # e.g. Color: Silver, Black on a chrome camera; eBay takes one value there
+                dropped = aspects[name][1:]
+                aspects[name] = aspects[name][:1]
+                notes.append(f"{name}: eBay takes one value here; kept {aspects[name][0]!r}, dropped {', '.join(dropped)}")
+                check.append(f"Confirm {name} {aspects[name][0]!r} (eBay takes one value; {', '.join(dropped)} was dropped)")
         price_ai = raw.get("price") or {}
         price = item.price if item.price is not None else price_ai.get("value")
         if isinstance(price, (int, float)):
@@ -334,7 +353,7 @@ class Lister:
             "aspects": aspects, "description_html": clean_html(raw.get("description_html", "")),
             "price": price, "currency": item.currency, "quantity": item.quantity, "image_urls": item.image_urls,
             "ai": {"price_reasoning": price_ai.get("reasoning", ""), "price_low": price_ai.get("low"),
-                   "price_high": price_ai.get("high"), "check": raw.get("check", []),
+                   "price_high": price_ai.get("high"), "check": check,
                    "confidence": raw.get("confidence", "medium"),
                    "price_from": "csv" if item.price is not None else "ai",
                    "provider": getattr(self.drafter, "provider", ""), "model": getattr(self.drafter, "model", "")},
@@ -380,8 +399,10 @@ class Lister:
             if existing:
                 oid = existing[0]["offerId"]
                 live_price = (existing[0].get("pricingSummary") or {}).get("price")
-                if live_price and d.item.price is None:
-                    # the price on eBay may have been set by the repricer since; only a price in the CSV overrides it
+                repriced = any(e["what"] == "repriced" for e in self.store.events(sku))
+                if live_price and d.item.price is None and (existing[0].get("status") == "PUBLISHED" or repriced):
+                    # a live listing's price may have been set by the repricer since; only a price in the CSV overrides
+                    # it. An offer left unpublished by a failed publish keeps the new draft's price (found live, 9 Nov).
                     offer["pricingSummary"]["price"] = live_price
                     L = {**L, "price": float(live_price["value"])}
                 self.inventory.update_offer(oid, offer)
@@ -406,7 +427,7 @@ class Lister:
             self.store.event(sku, res["status"], f"offer {oid} listing {listing_id}")
         except EbayApiError as e:
             res.update(status="ebay_error", error="; ".join(f"{i}: {m}" for i, m in zip(e.error_ids, e.messages())))
-            self.store.save(sku, "ebay_error", L, d.problems)
+            self.store.save(sku, "ebay_error", L, d.problems, res["offerId"])
             self.store.event(sku, "ebay_error", res["error"][:500])
         return res
 

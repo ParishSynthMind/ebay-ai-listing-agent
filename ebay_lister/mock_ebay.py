@@ -12,8 +12,9 @@ Rules it enforces, because they are what trips people up on the real thing:
   title max 80; only one offer per SKU + marketplace + format (25002 "Offer entity already exists.").
 - publishOffer checks what eBay checks: business policies exist (25007 to 25009, or 25017 if missing), the
   location exists (25012), a leaf category (25005), a price (25003), a quantity (25004), at least one picture
-  (25014), a condition (25021) and every required item specific of the category (25002, "The item specific
+  (25014), a condition the category takes (25021) and every required item specific of the category (25002, "The item specific
   Brand is missing...").
+- Metadata getItemConditionPolicies lists each category's conditions by id.
 - Business policies need the seller opted in to SELLING_POLICY_MANAGEMENT first.
 - getOrders pages with limit (max 200) and offset and supports filter=orderfulfillmentstatus:{A|B}.
 - createShippingFulfillment answers 201 with a Location header, refuses a bad order id (32100), line item (32200),
@@ -33,6 +34,7 @@ from typing import Optional
 from urllib.parse import parse_qs, unquote, urlparse
 
 from .auth import APP_SCOPE, USER_SCOPES
+from .validate import CONDITION_IDS
 
 SKU_RX = re.compile(r"^[A-Za-z0-9._-]{1,50}$")
 
@@ -74,58 +76,67 @@ def _aspect(name, required=False, mode="FREE_TEXT", single=True, values=(), usag
             "aspectValues": [{"localizedValue": v} for v in values]}
 
 
-SHOE_SIZES = [str(x / 2).rstrip("0").rstrip(".") for x in range(10, 33)]
-# A small slice of the EBAY_US tree (ids are real eBay US category ids; aspects trimmed to the ones that matter).
+SHOE_SIZES = [str(x / 2).rstrip("0").rstrip(".") for x in range(4, 41)]
+# A small slice of the EBAY_US tree, copied from the live sandbox on 9 November 2026 (tree version 134):
+# real category ids and ancestors, the real required item specifics with their modes and cardinality, a trimmed
+# set of optional ones, and each category's conditions from getItemConditionPolicies.
 CATEGORIES = {
     "11450": {"name": "Clothing, Shoes & Accessories", "leaf": False, "ancestors": [], "keywords": []},
-    "93427": {"name": "Men's Shoes", "leaf": False, "ancestors": ["11450", "1059"], "keywords": []},
-    "1059": {"name": "Men", "leaf": False, "ancestors": ["11450"], "keywords": []},
+    "260012": {"name": "Men", "leaf": False, "ancestors": ["11450"], "keywords": []},
+    "93427": {"name": "Men's Shoes", "leaf": False, "ancestors": ["11450", "260012"], "keywords": []},
     "15709": {
-        "name": "Athletic Shoes", "leaf": True, "ancestors": ["11450", "1059", "93427"],
+        "name": "Athletic Shoes", "leaf": True, "ancestors": ["11450", "260012", "93427"],
         "keywords": ["running", "trainers", "sneakers", "shoes", "athletic", "shoe", "trainer", "sneaker"],
+        "conditions": [("1000", "New with box"), ("1500", "New without box"), ("1750", "New with defects"),
+                       ("2990", "Pre-owned - Excellent"), ("3000", "Pre-owned - Good"), ("3010", "Pre-owned - Fair")],
         "aspects": [
-            _aspect("Brand", True, values=["Nike", "adidas", "New Balance", "ASICS", "Brooks", "Unbranded"]),
-            _aspect("US Shoe Size", True, "SELECTION_ONLY", values=SHOE_SIZES),
-            _aspect("Department", True, "SELECTION_ONLY", values=["Men", "Women", "Unisex Adult"]),
-            _aspect("Type", True, "SELECTION_ONLY", values=["Athletic"]),
-            _aspect("Style", True, values=["Sneaker", "Running Shoe", "Trainer"]),
-            _aspect("Color", True, single=False, values=["Black", "White", "Blue", "Gray", "Red", "Multicolor"]),
+            _aspect("Brand", True, values=["Unbranded", "adidas", "ASICS", "Brooks", "New Balance", "Nike"], usage="RECOMMENDED"),
+            _aspect("Color", True, values=["Beige", "Black", "Blue", "Gray", "Multicolor", "Red", "White"], usage="RECOMMENDED"),
+            _aspect("Department", True, "SELECTION_ONLY", values=["Men", "Teens", "Unisex Adults"], usage="RECOMMENDED"),
+            _aspect("US Shoe Size", True, values=SHOE_SIZES, usage="RECOMMENDED"),
+            _aspect("Type", mode="SELECTION_ONLY", values=["Athletic", "Cleats", "Sneakers"], usage="RECOMMENDED"),
+            _aspect("Style", mode="SELECTION_ONLY", values=["Casual", "Classic", "Modern", "Retro"], usage="RECOMMENDED"),
             _aspect("Model", usage="RECOMMENDED"),
-            _aspect("Upper Material", usage="RECOMMENDED", single=False, values=["Mesh", "Leather", "Synthetic"]),
-            _aspect("Shoe Width", values=["Standard", "Wide", "Narrow"], mode="SELECTION_ONLY"),
+            _aspect("Upper Material", values=["Canvas", "Leather", "Mesh", "Synthetic"], usage="RECOMMENDED"),
+            _aspect("Shoe Width", values=["Standard", "Wide", "Narrow"]),
         ],
     },
     "625": {"name": "Cameras & Photo", "leaf": False, "ancestors": [], "keywords": []},
-    "15230": {"name": "Film Photography", "leaf": False, "ancestors": ["625"], "keywords": []},
-    "15232": {
-        "name": "Film Cameras", "leaf": True, "ancestors": ["625", "15230"],
+    "69323": {"name": "Film Photography", "leaf": False, "ancestors": ["625"], "keywords": []},
+    "15230": {
+        "name": "Film Cameras", "leaf": True, "ancestors": ["625", "69323"],
         "keywords": ["film", "camera", "35mm", "slr", "rangefinder", "cameras"],
+        "conditions": [("1000", "New"), ("1500", "Open box"), ("2500", "Seller refurbished"), ("3000", "Used"),
+                       ("7000", "For parts or not working")],
         "aspects": [
-            _aspect("Brand", True, values=["Canon", "Nikon", "Olympus", "Pentax", "Minolta", "Leica", "Unbranded"]),
-            _aspect("Type", True, "SELECTION_ONLY", values=["SLR", "Rangefinder", "Point & Shoot", "TLR", "Instant"]),
-            _aspect("Model", True),
-            _aspect("Film Format", usage="RECOMMENDED", values=["35mm", "120", "Instant"]),
-            _aspect("Focus Type", usage="RECOMMENDED", mode="SELECTION_ONLY", values=["Manual", "Autofocus", "Fixed"]),
-            _aspect("Color", usage="RECOMMENDED", single=False, values=["Black", "Silver", "Chrome"]),
-            _aspect("MPN"),
+            _aspect("Brand", True, values=["Unbranded", "Canon", "Leica", "Minolta", "Nikon", "Olympus", "Pentax"], usage="RECOMMENDED"),
+            _aspect("Type", True, values=["35mm", "Compact", "Instant", "Medium Format", "Rangefinder", "SLR", "TLR"], usage="RECOMMENDED"),
+            _aspect("Model", True, usage="RECOMMENDED"),
+            _aspect("MPN", single=False, usage="RECOMMENDED"),
+            _aspect("Format", values=["35mm", "120 mm", "APS", "Instax Mini"], usage="RECOMMENDED"),
+            _aspect("Focus Type", values=["Auto", "Auto & Manual", "Eye-Controlled", "Fixed", "Manual"], usage="RECOMMENDED"),
+            _aspect("Color", values=["Black", "Gray", "Silver"], usage="RECOMMENDED"),
         ],
     },
-    "20625": {"name": "Home & Garden", "leaf": False, "ancestors": [], "keywords": []},
-    "20638": {
-        "name": "Mugs", "leaf": True, "ancestors": ["20625", "20625k"],
+    "11700": {"name": "Home & Garden", "leaf": False, "ancestors": [], "keywords": []},
+    "20625": {"name": "Kitchen, Dining & Bar", "leaf": False, "ancestors": ["11700"], "keywords": []},
+    "36027": {"name": "Dinnerware & Serveware", "leaf": False, "ancestors": ["11700", "20625"], "keywords": []},
+    "20695": {
+        "name": "Mugs", "leaf": True, "ancestors": ["11700", "20625", "36027"],
         "keywords": ["mug", "mugs", "cup", "coffee", "tea", "ceramic"],
+        "conditions": [("1000", "New"), ("1500", "New other (see details)"), ("3000", "Used")],
         "aspects": [
-            _aspect("Brand", True, values=["Unbranded", "Handmade"]),
-            _aspect("Type", True, "SELECTION_ONLY", values=["Mug", "Travel Mug", "Teacup"]),
-            _aspect("Material", usage="RECOMMENDED", values=["Ceramic", "Stoneware", "Porcelain", "Glass"]),
-            _aspect("Color", usage="RECOMMENDED", single=False, values=["White", "Blue", "Green", "Black", "Multicolor"]),
-            _aspect("Capacity", usage="RECOMMENDED"),
-            _aspect("Handmade", mode="SELECTION_ONLY", values=["Yes", "No"]),
+            _aspect("Type", True, values=["Coffee Mug", "Beer Mug", "Latte Mug", "Novelty Mug", "Travel Mug"], usage="RECOMMENDED"),
+            _aspect("Brand", True, values=["Unbranded", "Handmade"], usage="RECOMMENDED"),
+            _aspect("Color", True, values=["Black", "Blue", "Green", "Multicolor", "White"], usage="RECOMMENDED"),
+            _aspect("Material", single=False, values=["Ceramic", "Glass", "Porcelain", "Stoneware"], usage="RECOMMENDED"),
+            _aspect("Capacity", values=["8 fl oz", "10 fl oz", "12 fl oz", "16 fl oz"], usage="RECOMMENDED"),
+            _aspect("Personalize", mode="SELECTION_ONLY", values=["Yes", "No"], usage="RECOMMENDED"),
         ],
     },
-    "20625k": {"name": "Kitchen, Dining & Bar", "leaf": False, "ancestors": ["20625"], "keywords": []},
     "11116": {"name": "Coins & Paper Money", "leaf": False, "ancestors": [], "keywords": []},
 }
+CONDITION_ENUM_IDS = {v: k for k, v in CONDITION_IDS.items()}  # Inventory API name -> condition id
 
 
 @dataclass
@@ -195,12 +206,19 @@ class FakeEbay:
             return err(404, 0, f"mock only serves the sandbox hosts, not {u.netloc}")
         if path == "/identity/v1/oauth2/token":
             return self._token(headers, data)
-        if path.startswith("/sell/fulfillment/") and u.netloc != "apiz.sandbox.ebay.com":
-            return FakeResponse(404, {"errors": [{"errorId": 0, "message": "Fulfillment API is served from apiz"}]})
+        if u.netloc == "apiz.sandbox.ebay.com" and path.startswith("/sell/fulfillment/"):
+            # fulfillment_api.json names apiz, but the live sandbox answers this 404 there (9 Nov 2026)
+            return FakeResponse(404, {"errors": [{"errorId": 2002, "domain": "ACCESS", "category": "REQUEST",
+                                                  "message": "Resource not found",
+                                                  "longMessage": "A resource (URI) associated with the request could not be resolved.",
+                                                  "parameters": [{"name": "reason", "value": "HTTP 404 Not Found"}]}]})
         body = json.loads(data) if isinstance(data, (str, bytes)) and data else None
         if path.startswith("/commerce/taxonomy/v1"):
             denied = self._auth(headers, needs_user=False)
             return denied or self._taxonomy(path[len("/commerce/taxonomy/v1"):], query)
+        if path.startswith("/sell/metadata/v1"):
+            denied = self._auth(headers, needs_user=False)
+            return denied or self._metadata(path[len("/sell/metadata/v1"):], query)
         denied = self._auth(headers, needs_user=True)
         if denied:
             return denied
@@ -263,12 +281,25 @@ class FakeEbay:
             return err(403, 1100, "Access denied", domain="ACCESS", long="Insufficient permissions to fulfill the request.")
         return None
 
+    # --- Metadata (condition policies) ---------------------------------------------------
+    def _metadata(self, path, q):
+        m = re.fullmatch(r"/marketplace/([A-Z_]+)/get_item_condition_policies", path)
+        if not m:
+            return err(404, 0, f"mock has no metadata route {path}")
+        ids = re.fullmatch(r"categoryIds:\{([0-9|]+)\}", q.get("filter", ""))
+        wanted = ids.group(1).split("|") if ids else [c for c, v in CATEGORIES.items() if v["leaf"]]
+        pols = [{"categoryId": cid, "categoryTreeId": "0", "itemConditionRequired": True,
+                 "itemConditions": [{"conditionId": i, "conditionDescription": n, "usage": "REQUIRED"}
+                                    for i, n in CATEGORIES[cid]["conditions"]]}
+                for cid in wanted if cid in CATEGORIES and CATEGORIES[cid]["leaf"]]
+        return FakeResponse(200, {"itemConditionPolicies": pols})
+
     # --- Taxonomy -------------------------------------------------------------------
     def _taxonomy(self, path, q):
         if path == "/get_default_category_tree_id":
             if not q.get("marketplace_id"):
                 return err(400, 62002, "Missing marketplace ID.", domain="API_TAXONOMY")
-            return FakeResponse(200, {"categoryTreeId": "0", "categoryTreeVersion": "130"})
+            return FakeResponse(200, {"categoryTreeId": "0", "categoryTreeVersion": "134"})
         m = re.fullmatch(r"/category_tree/([^/]+)/(get_category_suggestions|get_item_aspects_for_category)", path)
         if not m or m.group(1) != "0":
             return err(404, 62000, "The specified category tree ID was not found.", domain="API_TAXONOMY")
@@ -285,15 +316,14 @@ class FakeEbay:
                 anc = [{"categoryId": a, "categoryName": CATEGORIES[a]["name"], "categoryTreeNodeLevel": i + 1}
                        for i, a in enumerate(c["ancestors"])]
                 sugg.append({"category": {"categoryId": cid, "categoryName": c["name"]},
-                             "categoryTreeNodeAncestors": list(reversed(anc)), "categoryTreeNodeLevel": len(anc) + 1,
-                             "relevancy": "HIGH" if score > 1 else "MEDIUM"})
+                             "categoryTreeNodeAncestors": list(reversed(anc)), "categoryTreeNodeLevel": len(anc) + 1})
             if not sugg:
                 return FakeResponse(204)
-            return FakeResponse(200, {"categorySuggestions": sugg, "categoryTreeId": "0", "categoryTreeVersion": "130"})
+            return FakeResponse(200, {"categorySuggestions": sugg, "categoryTreeId": "0", "categoryTreeVersion": "134"})
         cid = q.get("category_id", "")
         c = CATEGORIES.get(cid)
         if c is None:
-            return err(400, 62005, "The specified category ID does not belong to the specified category tree.", domain="API_TAXONOMY")
+            return err(400, 62005, "The specified category ID does not belong to specified category tree.", domain="API_TAXONOMY")
         if not c["leaf"]:
             return err(400, 62009, "The specified category ID must be a leaf category.", domain="API_TAXONOMY")
         return FakeResponse(200, {"aspects": copy.deepcopy(c["aspects"])})
@@ -425,6 +455,9 @@ class FakeEbay:
             return err(400, 25014, "The eBay listing associated with the inventory item, or the unpublished offer has invalid pictures. ")
         if not item.get("condition"):
             return err(400, 25021, "The eBay listing associated with the inventory item, or the unpublished offer has invalid item condition information. ")
+        if CONDITION_ENUM_IDS.get(item["condition"]) not in [i for i, _ in cat["conditions"]]:
+            return err(400, 25021, "The eBay listing associated with the inventory item, or the unpublished offer has invalid item "
+                                   "condition information. The provided condition id is invalid for the selected primary category id.")
         given = item.get("product", {}).get("aspects", {})
         for a in cat["aspects"]:
             name = a["localizedAspectName"]
@@ -501,7 +534,7 @@ class FakeEbay:
             want = set(m.group(1).split("|"))
             orders = [o for o in orders if o["orderFulfillmentStatus"] in want]
         page = orders[offset:offset + limit]
-        base = "https://apiz.sandbox.ebay.com/sell/fulfillment/v1/order"
+        base = "https://api.sandbox.ebay.com/sell/fulfillment/v1/order"
         out = {"href": url, "limit": limit, "offset": offset, "total": len(orders), "orders": copy.deepcopy(page)}
         if offset + limit < len(orders):
             nq = f"?limit={limit}&offset={offset + limit}" + (f"&filter={f}" if f else "")
@@ -554,5 +587,5 @@ class FakeEbay:
             by_id[i]["lineItemFulfillmentStatus"] = "FULFILLED"
         states = {li["lineItemFulfillmentStatus"] for li in o["lineItems"]}
         o["orderFulfillmentStatus"] = "FULFILLED" if states == {"FULFILLED"} else "IN_PROGRESS"
-        loc = f"https://apiz.sandbox.ebay.com/sell/fulfillment/v1/order/{order_id}/shipping_fulfillment/{fid}"
+        loc = f"https://api.sandbox.ebay.com/sell/fulfillment/v1/order/{order_id}/shipping_fulfillment/{fid}"
         return FakeResponse(201, {}, {"Location": loc})

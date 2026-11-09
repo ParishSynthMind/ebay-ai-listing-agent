@@ -22,8 +22,7 @@ from urllib.parse import urlencode
 from .http import EbayApiError, parse_errors
 
 SANDBOX = {
-    "api": "https://api.sandbox.ebay.com",
-    "apiz": "https://apiz.sandbox.ebay.com",  # the Fulfillment API lives on apiz (eBay's OpenAPI spec)
+    "api": "https://api.sandbox.ebay.com",  # every API this tool calls, Fulfillment included (live check, 9 Nov 2026)
     "auth": "https://auth.sandbox.ebay.com",
 }
 APP_SCOPE = "https://api.ebay.com/oauth/api_scope"
@@ -38,7 +37,6 @@ EARLY = 300  # renew five minutes before eBay says the token expires
 
 PRODUCTION = {
     "api": "https://api.ebay.com",
-    "apiz": "https://apiz.ebay.com",
     "auth": "https://auth.ebay.com",
 }
 ALLOW_ENV = "EBAY_ALLOW_PRODUCTION"

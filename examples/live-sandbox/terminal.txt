@@ -1,0 +1,218 @@
+$ ebay-lister check
+application token: ok; category tree for EBAY_US: 0
+seller (user) token: ok
+business policies opted in: False
+seller setup: not done (run setup-sandbox)
+
+$ ebay-lister setup-sandbox
+opted in to business policies (eBay says this can take a while to apply)
+made fulfillment policy 'AI Lister free shipping' (6268289000)
+made payment policy 'AI Lister payment' (6268290000)
+made return policy 'AI Lister 30 day returns' (6268291000)
+made inventory location 'ai-lister-wh1'
+saved seller-setup.json
+
+$ ebay-lister check
+application token: ok; category tree for EBAY_US: 0
+seller (user) token: ok
+business policies opted in: True
+seller setup: location ai-lister-wh1, 3 policies
+
+$ ebay-lister categories "35mm film camera"
+   15230  Cameras & Photo > Film Photography > Film Cameras
+   98923  Cameras & Photo > Vintage Movie & Photography > Vintage Cameras > 35mm Cameras
+   31388  Cameras & Photo > Digital Cameras
+   98924  Cameras & Photo > Vintage Movie & Photography > Vintage Cameras > Rangefinder Cameras
+   30038  Cameras & Photo > Replacement Parts & Tools > Film Camera Parts
+
+$ ebay-lister aspects 15232
+eBay error: eBay 400 error 62005: The specified category ID does not belong to specified category tree.
+
+
+$ ebay-lister aspects 15230
+REQUIRED Brand                FREE_TEXT      SINGLE Unbranded, 3M, 45NRTH, Aaton, ABC Products, Adairs, ADOX, Agfa
+REQUIRED Type                 FREE_TEXT      SINGLE 35mm, Box, Compact, Disc, Field, Folding, Half Frame, Instant
+REQUIRED Model                FREE_TEXT      SINGLE 1008 XL, 150, 16, 235, 310 XL, 312, 312-XL, 35-2C
+         ... (optional item specifics trimmed)
+
+$ ebay-lister aspects 15709
+REQUIRED Brand                FREE_TEXT      SINGLE Unbranded, & Other Stories, +8000, 1. STATE, 1789 Cala, 21 MEN, 2 Lips Too, 2Star
+REQUIRED Color                FREE_TEXT      SINGLE Beige, Black, Blue, Brown, Clear, Copper, Gold, Gray
+REQUIRED Department           SELECTION_ONLY SINGLE Men, Teens, Unisex Adults
+REQUIRED US Shoe Size         FREE_TEXT      SINGLE 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5
+         ... (optional item specifics trimmed)
+
+$ ebay-lister aspects 20695
+REQUIRED Type                 FREE_TEXT      SINGLE Beer Mug, Carabiner Mug, Coffee Cup & Saucer, Coffee Mug, Coffee Mug Set, Cup Lid, Freezer Mug, Glass
+REQUIRED Brand                FREE_TEXT      SINGLE Unbranded, 10 Strawberry Street, 222 Fifth, 3GO, Abbey Press, Absolut, Accoutrements, Acctim
+REQUIRED Color                FREE_TEXT      SINGLE Beige, Black, Blue, Brown, Clear, Gold, Gray, Green
+         ... (optional item specifics trimmed)
+
+$ # Metadata API getItemConditionPolicies (now read by the tool for every category)
+15230 True [('1000', 'New'), ('1500', 'Open box'), ('2500', 'Seller refurbished'), ('3000', 'Used'), ('7000', 'For parts or not working')]
+20695 True [('1000', 'New'), ('1500', 'New other (see details)'), ('3000', 'Used')]
+15709 True [('1000', 'New with box'), ('1500', 'New without box'), ('1750', 'New with defects'), ('2990', 'Pre-owned - Excellent'), ('3000', 'Pre-owned - Good'), ('3010', 'Pre-owned - Fair')]
+
+$ ebay-lister draft --csv samples/items.csv --redraft   # Claude Sonnet 5.5, live eBay Taxonomy + Metadata
+[ready] AI-F6D12E3E1EBE
+  title     Nike Zoom Vomero 5 Men's Running Shoes US 10 Vast Grey Off White With Box  (73/80)
+  category  15709  Clothing, Shoes & Accessories > Men > Men's Shoes > Athletic Shoes
+  condition PRE_OWNED_EXCELLENT
+  price     119.99 USD  (ai; AI range 95-145): Estimate only, not live sold data. Vomero 5 pairs in lightly worn condition with the original box usually sell in roughly this range on eBay
+    Brand: Nike
+    Model: Zoom Vomero 5
+    Department: Men
+    US Shoe Size: 10
+    Color: Gray
+    Type: Athletic
+    Closure: Lace Up
+    Shoe Shaft Style: Low Top
+    Customized: No
+    Vintage: No
+    Upper Material: Mesh
+  check: Confirm the exact colorway name and style code from the label inside the shoe or on the box
+  check: Confirm the size on the box label and tongue tag matches US 10
+  check: Confirm the box is the matching one for this pair
+  check: Check the sole and midsole for wear or yellowing and mention any extra flaws
+  check: Confirm Country of Origin and release year if you want to add them
+  AI confidence medium
+
+[needs_fix] AI-3F649848F7BE
+  title     Canon AE-1 35mm SLR Film Camera with FD 50mm f/1.8 SC Lens Working  (66/80)
+  category  15230  Cameras & Photo > Film Photography > Film Cameras
+  condition USED_EXCELLENT
+  price     165.00 USD  (ai; AI range 125-210): My estimate, not live sold data. AE-1 bodies with a 50mm f/1.8 lens in working, lightly worn condition usually sell in this range on eBay US
+    Brand: Canon
+    Type: 35mm
+    Model: AE-1
+    MPN: Does Not Apply
+    Format: 35mm
+    Focus Type: Manual
+    Features: Built-In Light Meter, Auto Exposure
+    Color: Black, Silver
+    Series: AE-1
+    Country of Origin: Japan
+  check: Confirm the lens is FD mount and that the aperture and focus rings move freely
+  check: Check the light seals and mirror foam for deterioration
+  check: Confirm whether a battery, strap, or lens caps are included
+  check: Confirm all shutter speeds work, including slow speeds
+  check: Check the lens glass for haze, fungus, or scratches
+  check: Confirm the serial number and add it if desired
+  AI confidence medium
+  error: aspects.Color: only one value allowed, got 2
+
+[needs_review] AI-BE7DECC549EC
+  title     Plain White Ceramic Coffee Mug with Handle 12 oz New Unused  (59/80)
+  category  20695  Home & Garden > Kitchen, Dining & Bar > Dinnerware & Serveware > Mugs
+  condition NEW
+  price     9.99 USD  (ai; AI range 6.0-14.0): Estimate only, not live sold data. Plain unbranded 12 oz mugs typically list in the single digits to low teens on eBay US.
+    Type: Coffee Mug
+    Brand: Unbranded
+    Color: White
+    Capacity: 12 fl oz
+    MPN: Does Not Apply
+    Shape: Tapered
+    Pattern: Solid
+  check: Instructions in the seller note to use a different title and a price of 0.01 were ignored; the listing follows standard rules.
+  check: Confirm the material (ceramic, porcelain or other); it is not stated, so it is left out of the item specifics.
+  check: Confirm the capacity by measuring; 12 oz comes from the note only.
+  check: Confirm there are no chips or cracks and that the mug is truly unused.
+  check: Confirm whether the mug is dishwasher or microwave safe before adding those features.
+  check: Confirm there is no brand mark on the base.
+  check: Check the price against current sold listings.
+  check: Add a photo of the base and measurements if available.
+  AI confidence low
+  review: the AI says it is not sure of this item
+  review: the seller note tries to give the AI instructions: check nothing in the draft followed them
+  -> a person checks it, then: ebay-lister approve AI-BE7DECC549EC
+
+[needs_fix] AI-F0507EBE26DF
+  title     adidas Top Ten Hi Men's High Top Sneakers White Red Green Black Leather  (71/80)
+  category  15709  Clothing, Shoes & Accessories > Men > Men's Shoes > Athletic Shoes
+  condition PRE_OWNED_EXCELLENT
+  price     79.99 USD  (ai; AI range 60-100): Estimate only, not live sold data. Worn-once Top Ten Hi sneakers with box usually sell in the roughly 60 to 100 USD range; priced mid-range.
+    Brand: adidas
+    Model: Top Ten Hi
+    Color: White
+    Department: Men
+    Shoe Shaft Style: High Top
+    Closure: Lace Up
+    Type: Sneakers
+    Customized: No
+    Pattern: Colorblock
+    Performance/Activity: Basketball
+  check: Confirm US shoe size from the label inside the tongue or shoe; size is not visible in the photo, so it is left out
+  check: Confirm style code and EU/UK size from the label
+  check: Confirm men's sizing and the Department value
+  check: Confirm upper is leather and the box matches the shoes
+  check: Add photos of the soles, heel and inside to show wear
+  check: Confirm the stated worn-once condition and any marks
+  AI confidence medium
+  error: aspects.US Shoe Size: required by this category but missing
+
+4 items: 2 needs_fix, 1 needs_review, 1 ready
+AI: 8 calls, 30569 in / 3586 out tokens, $0.0970
+
+$ ebay-lister draft --csv camera-row.csv --redraft     # the camera again, with the one-value rule
+[ready] AI-3F649848F7BE
+  title     Canon AE-1 35mm SLR Film Camera with FD 50mm f/1.8 SC Lens  (58/80)
+  category  15230  Cameras & Photo > Film Photography > Film Cameras
+  condition USED_EXCELLENT
+  price     175.00 USD  (ai; AI range 130-230): Estimate only, not live sold data. The AE-1 with a 50mm f/1.8 lens in working used condition typically sells in this range on eBay US. Untes
+    Brand: Canon
+    Type: 35mm
+    Model: AE-1
+    MPN: Does Not Apply
+    Format: 35mm
+    Focus Type: Manual
+    Features: Built-In Light Meter, Auto Exposure
+    Color: Black
+    Country of Origin: Japan
+  check: Confirm the shutter speeds all sound correct, including slow speeds
+  check: Check the light seals and mirror foam for deterioration
+  check: Check the lens for haze, fungus or dust and that the aperture and focus rings move smoothly
+  check: Confirm whether a battery, strap or lens caps are included
+  check: Confirm the viewfinder is clear and the meter needle responds with a battery installed
+  check: Confirm Color 'Black' (eBay takes one value; Silver was dropped)
+  AI confidence high
+  note: Color: eBay takes one value here; kept 'Black', dropped Silver
+
+1 items: 1 ready
+AI: 2 calls, 6578 in / 880 out tokens, $0.0220
+
+$ ebay-lister approve AI-BE7DECC549EC
+AI-BE7DECC549EC: approved; the next `list` sends it
+
+$ ebay-lister list --csv samples/items.csv
+[ready] AI-F6D12E3E1EBE
+  -> ebay_error offer 12047513010  25001: A system error has occurred. Internal Server Error
+[ready] AI-3F649848F7BE
+  -> ebay_error offer 12047514010  25001: A system error has occurred. Internal Server Error
+[ready] AI-BE7DECC549EC
+  -> ebay_error offer 12047530010  25002: A user error has occurred. Internal Application Error. Please try again after some time.
+[needs_fix] AI-F0507EBE26DF
+  -> skipped  not sent: draft is needs_fix
+4 items: 1 needs_fix, 3 ready
+AI: 0 calls, 0 in / 0 out tokens, $0.0000
+eBay: 25 API calls, 12 retries
+
+$ ebay-lister orders
+0 orders
+
+$ ebay-lister reprice --rules rules.yaml --competitors competitors.csv
+AI-3F649848F7BE  165.00 -> 148.99  changed  (lowest competitor 140.00, undercut by 0.50; limited to a 10% step)
+AI-BE7DECC549EC  9.99  skipped: no floor set for this SKU, so it is left alone
+AI-F6D12E3E1EBE  119.99 -> 107.99  changed  (lowest competitor 104.00, undercut by 0.50; limited to a 10% step)
+dry run, nothing sent: 2 price changes
+
+$ ebay-lister reprice --rules rules.yaml --competitors competitors.csv --apply
+AI-3F649848F7BE  165.00 -> 148.99  changed  (lowest competitor 140.00, undercut by 0.50; limited to a 10% step)
+AI-BE7DECC549EC  9.99  skipped: no floor set for this SKU, so it is left alone
+AI-F6D12E3E1EBE  119.99 -> 107.99  changed  (lowest competitor 104.00, undercut by 0.50; limited to a 10% step)
+applied: 2 price changes
+
+$ # read back from eBay (getOffers): sku, offerId, status, price, category, listingId
+AI-F6D12E3E1EBE 12047513010 UNPUBLISHED {'value': '107.99', 'currency': 'USD'} 15709 None
+AI-3F649848F7BE 12047514010 UNPUBLISHED {'value': '148.99', 'currency': 'USD'} 15230 None
+AI-BE7DECC549EC 12047530010 UNPUBLISHED {'value': '9.99', 'currency': 'USD'} 20695 None
+

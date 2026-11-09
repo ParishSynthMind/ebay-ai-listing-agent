@@ -10,7 +10,7 @@ def item(title="Nike Pegasus 40 Running Shoes", aspects=None, images=True, qty=1
     return {"availability": {"shipToLocationAvailability": {"quantity": qty}}, "condition": condition,
             "product": {"title": title, "description": "x",
                         "aspects": aspects if aspects is not None else {"Brand": ["Nike"], "US Shoe Size": ["10"], "Department": ["Men"],
-                                                                        "Type": ["Athletic"], "Style": ["Running Shoe"], "Color": ["Blue"]},
+                                                                        "Type": ["Athletic"], "Style": ["Modern"], "Color": ["Blue"]},
                         "imageUrls": ["https://i.example.com/a.jpg"] if images else []}}
 
 
@@ -41,7 +41,7 @@ def test_no_suggestions_is_an_empty_list(ctx):
 def test_aspects_and_disk_cache(ctx, fake):
     a = ctx.taxonomy.aspects("15709")
     req = [x["localizedAspectName"] for x in a if x["aspectConstraint"]["aspectRequired"]]
-    assert req == ["Brand", "US Shoe Size", "Department", "Type", "Style", "Color"]
+    assert req == ["Brand", "Color", "Department", "US Shoe Size"]  # the live sandbox, 9 Nov 2026
     before = fake.calls("GET", "/commerce/taxonomy/v1/category_tree/0/get_item_aspects_for_category")
     assert ctx.taxonomy.aspects("15709") == a
     assert fake.calls("GET", "/commerce/taxonomy/v1/category_tree/0/get_item_aspects_for_category") == before
@@ -184,6 +184,32 @@ def test_orders_limit_over_200_is_refused(ctx):
         ctx.fulfillment.orders(limit=201)
 
 
-def test_fulfillment_is_on_the_apiz_host(ctx, fake):
+def test_fulfillment_is_on_the_api_host_not_apiz(ctx, fake):
+    # eBay's spec names apiz; the live sandbox answers 404 there and 200 on api (checked 9 Nov 2026)
     ctx.fulfillment.orders()
-    assert ctx.fulfillment.base.startswith("https://apiz.sandbox.ebay.com/")
+    assert ctx.fulfillment.base.startswith("https://api.sandbox.ebay.com/")
+    r = fake.request("GET", "https://apiz.sandbox.ebay.com/sell/fulfillment/v1/order", headers={})
+    assert r.status_code == 404
+
+
+def test_conditions_come_from_the_metadata_api_and_are_cached(ctx, fake):
+    c = ctx.taxonomy.conditions("15230")
+    assert [x["enum"] for x in c] == ["NEW", "NEW_OTHER", "SELLER_REFURBISHED", "USED_EXCELLENT", "FOR_PARTS_OR_NOT_WORKING"]
+    assert c[3]["name"] == "Used"  # 3000 is plain "Used" here; there is no USED_GOOD (5000) in Film Cameras
+    assert [x["enum"] for x in ctx.taxonomy.conditions("15709")][3:] == ["PRE_OWNED_EXCELLENT", "USED_EXCELLENT", "PRE_OWNED_FAIR"]
+    before = fake.calls("GET", "/sell/metadata/v1/marketplace/EBAY_US/get_item_condition_policies")
+    ctx.taxonomy.conditions("15230")
+    assert fake.calls("GET", "/sell/metadata/v1/marketplace/EBAY_US/get_item_condition_policies") == before == 2
+
+
+def test_publish_with_a_condition_the_category_does_not_take_is_25021(ready_ctx):
+    inv = ready_ctx.inventory
+    inv.put_item("CAM1", item(title="Canon AE-1", condition="USED_GOOD",
+                              aspects={"Brand": ["Canon"], "Type": ["35mm"], "Model": ["AE-1"]}))
+    oid = inv.create_offer(offer(ready_ctx, sku="CAM1", category="15230"))
+    with pytest.raises(EbayApiError) as e:
+        inv.publish_offer(oid)
+    assert e.value.error_ids == [25021] and "invalid for the selected primary category id" in str(e.value)
+    inv.put_item("CAM1", item(title="Canon AE-1", condition="USED_EXCELLENT",
+                              aspects={"Brand": ["Canon"], "Type": ["35mm"], "Model": ["AE-1"]}))
+    assert inv.publish_offer(oid)

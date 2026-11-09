@@ -159,6 +159,14 @@ def aspect_brief(aspects: list[dict], limit_values: int = 40) -> str:
     return "\n".join(lines)
 
 
+def condition_brief(conditions: list[dict] | None) -> str:
+    """The category's accepted conditions (eBay rejects any other at publish, error 25021)."""
+    if not conditions:
+        return ""
+    return ("Condition: this category ONLY takes " + ", ".join(f"{c['enum']} ({c['name']})" for c in conditions)
+            + ". Pick the closest one of these.\n")
+
+
 class Drafter:
     """Provider-neutral. Subclasses implement _call(system, text, images, schema) -> (dict, tokens_in, tokens_out)."""
 
@@ -189,7 +197,7 @@ class Drafter:
                 "For a closed list use a value from the list exactly as written. For Brand on an unbranded item use "
                 "'Unbranded'; for MPN when none is shown use 'Does Not Apply' (source 'standard'). If a REQUIRED value "
                 "cannot be known, leave it out and say so in 'check'.\n"
-                f"{aspect_brief(aspects)}\n\n<seller_note>\n{note or '(no note)'}\n</seller_note>")
+                f"{aspect_brief(aspects)}\n{condition_brief(category.get('conditions'))}\n<seller_note>\n{note or '(no note)'}\n</seller_note>")
         return self._run(text, images, DRAFT_SCHEMA)
 
 

@@ -25,7 +25,7 @@ def test_photo_to_published_listing(ready_ctx, fake, shoe_item):
     d = L.draft(shoe_item)
     assert d.status == "ready", d.problems
     assert d.listing["category_id"] == "15709" and d.listing["price"] == 62.0
-    assert d.listing["aspects"]["Color"] == ["Blue", "White"]
+    assert d.listing["aspects"]["Color"] == ["Blue"]
     r = L.send(d)
     assert r["status"] == "published" and r["listingId"]
     sent = fake.items["SHOE-001"]
@@ -162,7 +162,7 @@ def test_plural_suggestion_is_accepted(ready_ctx, monkeypatch):
     item = ItemInput(sku="M1", note="white mug", image_urls=["https://i/x.jpg"])
     L = lister(ready_ctx, [("identify", ident("white mug", "white ceramic mug"))])
     cat, notes = L.choose_category("white ceramic mug", "white mug")
-    assert cat["categoryId"] == "20638" and cat["categoryName"] == "Mugs" and notes == []
+    assert cat["categoryId"] == "20695" and cat["categoryName"] == "Mugs" and notes == []
     assert item.sku == "M1"
 
 
@@ -319,3 +319,49 @@ def test_drafts_json_shape(ready_ctx, shoe_item):
     d = lister(ready_ctx, shoe_replies()).draft(shoe_item)
     j = json.loads(json.dumps(d.to_dict()))
     assert j["status"] == "ready" and j["listing"]["ai"]["price_reasoning"]
+
+
+def test_a_condition_the_category_does_not_take_is_stopped_and_the_ai_is_told(ready_ctx):
+    camera = {**copy.deepcopy(SHOE), "title": "Canon AE-1 35mm SLR Film Camera", "condition": "USED_GOOD",
+              "aspects": [{"name": "Brand", "values": ["Canon"], "source": "photo"},
+                          {"name": "Type", "values": ["35mm"], "source": "photo"},
+                          {"name": "Model", "values": ["AE-1"], "source": "photo"}],
+              "price": {"value": 165.0, "currency": "USD", "low": 140, "high": 190, "reasoning": "estimate"}}
+    L = lister(ready_ctx, [("identify", ident("film camera", "35mm film camera")), ("draft", camera)])
+    d = L.draft(ItemInput(sku="CAM-1", note="canon ae-1", image_urls=["https://i/x.jpg"]))
+    assert d.listing["category_id"] == "15230" and d.status == "needs_fix"
+    assert any("USED_GOOD is not accepted in this category" in str(p) and "USED_EXCELLENT (Used)" in str(p) for p in d.problems)
+    assert "Condition: this category ONLY takes NEW (New), NEW_OTHER (Open box)" in L.drafter.sent[-1]["text"]
+
+
+def test_two_values_on_a_one_value_specific_keeps_the_first_and_says_so(ready_ctx, shoe_item):
+    two = copy.deepcopy(SHOE)
+    two["aspects"] = [a if a["name"] != "Color" else {**a, "values": ["Blue", "White"]} for a in two["aspects"]]
+    d = lister(ready_ctx, shoe_replies(draft=two)).draft(shoe_item)
+    assert d.status == "ready" and d.listing["aspects"]["Color"] == ["Blue"]
+    assert any("kept 'Blue', dropped White" in n for n in d.notes)
+    assert any("Confirm Color 'Blue'" in c for c in d.listing["ai"]["check"])
+
+
+def test_a_failed_publish_leaves_the_next_drafts_price_alone(ready_ctx, fake, shoe_item):
+    from ebay_lister.mock_ebay import err
+
+    L = lister(ready_ctx, shoe_replies())
+    d = L.draft(shoe_item)
+    calls = {"n": 0}
+    real = fake._publish
+
+    def broken(o):  # the sandbox on 9 Nov 2026: every publish answered with a system error
+        calls["n"] += 1
+        return err(500, 25001, "A system error has occurred. Internal Server Error")
+    fake._publish = broken
+    first = L.send(d)
+    assert first["status"] == "ebay_error" and first["offerId"]
+    assert ready_ctx.store.get("SHOE-001")["offer_id"] == first["offerId"]
+    fake._publish = real
+    changed = copy.deepcopy(SHOE)
+    changed["price"]["value"] = 70.0
+    L2 = lister(ready_ctx, shoe_replies(draft=changed))
+    second = L2.send(L2.draft(shoe_item, redraft=True))
+    assert second["status"] == "published" and second["offerId"] == first["offerId"] and len(fake.offers) == 1
+    assert fake.offers[first["offerId"]].body["pricingSummary"]["price"]["value"] == "70.00"

@@ -3,7 +3,7 @@
 A listing with an error is never sent. The checks are the ones that make publishOffer fail (or quietly
 hurt a listing): the 80-character title, every required aspect present, values from the allowed list where
 the category only accepts its own values, one value where only one is allowed, value lengths, a valid
-condition, a price inside the seller's floor and ceiling, a whole-number quantity, https picture links,
+condition (and one this category accepts, from eBay's Metadata API), a price inside the seller's floor and ceiling, a whole-number quantity, https picture links,
 and no scripts, forms or off-eBay links in the description (eBay bans active content).
 """
 from __future__ import annotations
@@ -19,9 +19,18 @@ MAX_IMAGES = 24
 CONDITIONS = [
     "NEW", "LIKE_NEW", "NEW_OTHER", "NEW_WITH_DEFECTS",
     "CERTIFIED_REFURBISHED", "EXCELLENT_REFURBISHED", "VERY_GOOD_REFURBISHED", "GOOD_REFURBISHED",
-    "SELLER_REFURBISHED", "USED_EXCELLENT", "USED_VERY_GOOD", "USED_GOOD", "USED_ACCEPTABLE",
-    "FOR_PARTS_OR_NOT_WORKING",
+    "SELLER_REFURBISHED", "PRE_OWNED_EXCELLENT", "USED_EXCELLENT", "PRE_OWNED_FAIR", "USED_VERY_GOOD", "USED_GOOD",
+    "USED_ACCEPTABLE", "FOR_PARTS_OR_NOT_WORKING",
 ]
+# getItemConditionPolicies answers in condition ids; the Inventory API takes these names (eBay's
+# "Item condition ID and name values" table). 3000 is plain "Used" in most categories and "Pre-owned - Good" in apparel.
+CONDITION_IDS = {
+    "1000": "NEW", "1500": "NEW_OTHER", "1750": "NEW_WITH_DEFECTS", "2000": "CERTIFIED_REFURBISHED",
+    "2010": "EXCELLENT_REFURBISHED", "2020": "VERY_GOOD_REFURBISHED", "2030": "GOOD_REFURBISHED",
+    "2500": "SELLER_REFURBISHED", "2750": "LIKE_NEW", "2990": "PRE_OWNED_EXCELLENT", "3000": "USED_EXCELLENT",
+    "3010": "PRE_OWNED_FAIR", "4000": "USED_VERY_GOOD", "5000": "USED_GOOD", "6000": "USED_ACCEPTABLE",
+    "7000": "FOR_PARTS_OR_NOT_WORKING",
+}
 BANNED_HTML = [
     (re.compile(r"<\s*(script|iframe|object|embed|form|input|button|link|meta|base)\b", re.I), "active content tag"),
     (re.compile(r"\son[a-z]+\s*=", re.I), "JavaScript event attribute"),
@@ -49,7 +58,9 @@ def _allowed(a: dict) -> list[str]:
     return [v["localizedValue"] for v in a.get("aspectValues", [])]
 
 
-def check_listing(listing: dict, aspects: list[dict], floor: float | None = None, ceiling: float | None = None) -> list[Problem]:
+def check_listing(listing: dict, aspects: list[dict], floor: float | None = None, ceiling: float | None = None,
+                  conditions: list[dict] | None = None) -> list[Problem]:
+    """conditions: the category's accepted conditions as [{"enum", "name"}] (None = not known, only the enum is checked)."""
     p: list[Problem] = []
     title = listing.get("title") or ""
     if not title.strip():
@@ -91,6 +102,9 @@ def check_listing(listing: dict, aspects: list[dict], floor: float | None = None
 
     if listing.get("condition") not in CONDITIONS:
         p.append(Problem("condition", f"{listing.get('condition')!r} is not an eBay condition"))
+    elif conditions and listing["condition"] not in [c["enum"] for c in conditions]:
+        allowed = ", ".join(f"{c['enum']} ({c['name']})" for c in conditions)
+        p.append(Problem("condition", f"{listing['condition']} is not accepted in this category; it takes {allowed}"))
 
     price = listing.get("price")
     if not isinstance(price, (int, float)) or isinstance(price, bool) or price <= 0:

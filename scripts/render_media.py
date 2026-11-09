@@ -5,6 +5,7 @@
 1. media/listing-preview.png   three drafted listings as a seller would review them: ready, held for review, blocked
 2. media/draft-run.png         the dry-run draft of the sample CSV, as printed
 3. media/list-reprice.png      list, approve, run again, orders, mark shipped, repricing and the report, as printed
+4. media/live-sandbox.png      the run against the real eBay sandbox on 9 November 2026 (examples/live-sandbox/), key lines
 Claude and Gemini were real in that run; eBay was the in-memory sandbox mock (see the README).
 """
 import base64
@@ -114,6 +115,15 @@ def main():
         ("draft-run.png", terminal(draft_lines, "Dry run on the sample CSV: real Claude Sonnet 5.5 reading the photos; eBay Taxonomy answered by the sandbox mock")),
         ("list-reprice.png", terminal(keep, "List, approve, run again, orders, mark shipped, repricing: real Claude drafts, eBay Inventory / Fulfillment answered by the sandbox mock")),
     ]
+    live = ROOT / "examples" / "live-sandbox" / "terminal.txt"
+    if live.exists():
+        keep = [shorten(x, 130) for x in live.read_text().splitlines()
+                if x.startswith(("$", "[", "  ->", "  condition", "  error:", "  note: Color", "REQUIRED", "eBay error", "   15230", "   98923",
+                                 "made ", "4 items", "AI:", "eBay:", "AI-", "0 orders", "applied", "dry run", "15230 True"))
+                and not x.startswith("REQUIRED Brand                FREE_TEXT      SINGLE Unbranded, &")]
+        keep = [x for x in keep if not x.startswith("$ ebay-lister check")]
+        pages.append(("live-sandbox.png", terminal(keep, "Against the real eBay sandbox, 9 November 2026: real Claude Sonnet 5.5, "
+                                                         "real eBay Taxonomy, Metadata, Account, Inventory and Fulfillment APIs")))
     with sync_playwright() as p:
         b = p.chromium.launch()
         page = b.new_page(device_scale_factor=2)

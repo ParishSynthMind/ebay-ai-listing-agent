@@ -19,9 +19,9 @@ def test_production_is_refused_without_the_second_switch():
         base_urls("production", env={"EBAY_ALLOW_PRODUCTION": "maybe"})
 
 
-def test_production_hosts_from_ebays_spec_when_both_switches_are_on():
+def test_production_hosts_when_both_switches_are_on():
     u = base_urls("production", env={"EBAY_ALLOW_PRODUCTION": "yes"})
-    assert u == {"api": "https://api.ebay.com", "apiz": "https://apiz.ebay.com", "auth": "https://auth.ebay.com"}
+    assert u == {"api": "https://api.ebay.com", "auth": "https://auth.ebay.com"}
 
 
 def test_unknown_environment_is_refused():

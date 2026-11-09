@@ -6,18 +6,18 @@ Give it product photos and a rough note, or a CSV of them, and it writes the eBa
 
 ```
 note: "canon ae-1 with 50mm 1.8 lens. shutter fires, meter works, light scuffs on the top plate"
-  ->  Canon AE-1 35mm SLR Film Camera with FD 50mm f/1.8 SC Lens Working   (66/80)
-      Film Cameras (15232) · Used Good · US $175.00 (AI band 135 to 220) · AI confidence high · ready
+  ->  Canon AE-1 35mm SLR Film Camera with FD 50mm f/1.8 SC Lens   (58/80)
+      Film Cameras (15230) · Used · US $175.00 (AI band 130 to 230) · ready     (live eBay sandbox, 9 Nov 2026)
 ```
 
 ![Three drafted listings: ready, held for review, blocked](media/listing-preview.png)
 
-*A real run on 8 November 2026: Claude Sonnet 5.5 read the photos. The camera is ready to list. The mug is held for a person, because its seller note tries to give the AI orders. The trainers are stopped before eBay, because the category requires a US shoe size and nothing in the photo or note shows one. eBay here is the sandbox mock described below. **This has not been run against the real eBay sandbox yet** (see [Status](#status)).*
+*A real run on 8 November 2026: Claude Sonnet 5.5 read the photos. The camera is ready to list. The mug is held for a person, because its seller note tries to give the AI orders. The trainers are stopped before eBay, because the category requires a US shoe size and nothing in the photo or note shows one. eBay here is the sandbox mock described below. The same flow was then run against the **real eBay sandbox** on 9 November: see [The live sandbox test](#the-live-sandbox-test-9-november-2026).*
 
 ## What it does
 
-- **Photos and a note in, a full listing out.** The model looks at up to 4 photos and the seller's note. Step 1 says what the item is and gives a search phrase. Step 2 gets the category's real item specifics from eBay's Taxonomy API, with required ones flagged and the allowed values for closed lists, and writes the listing against them.
-- **Validated before eBay sees it.** Title 80 characters at most (cut at a word break if the model runs over), every required item specific present, values taken from the allowed list where the category only accepts its own values, one value where only one is allowed, value lengths, a real eBay condition, a price inside your floor and ceiling, a whole-number quantity, https picture links, and no scripts, forms or links in the description (eBay bans active content; the HTML is also cleaned down to simple tags). Anything with an error is not sent.
+- **Photos and a note in, a full listing out.** The model looks at up to 4 photos and the seller's note. Step 1 says what the item is and gives a search phrase. Step 2 gets the category's real item specifics from eBay's Taxonomy API, with required ones flagged and the allowed values for closed lists, and the conditions the category takes from the Metadata API, and writes the listing against them.
+- **Validated before eBay sees it.** Title 80 characters at most (cut at a word break if the model runs over), every required item specific present, values taken from the allowed list where the category only accepts its own values, one value where only one is allowed (a second one the model adds is dropped, with a note and a line on the check list), value lengths, a condition this category actually takes (read from eBay's Metadata API and given to the model), a price inside your floor and ceiling, a whole-number quantity, https picture links, and no scripts, forms or links in the description (eBay bans active content; the HTML is also cleaned down to simple tags). Anything with an error is not sent.
 - **eBay's wording policies, checked in code.** The model is told the rules, and then `ebay_lister/policy.py` checks what it actually wrote. Stopped: replica or counterfeit words, email addresses, phone numbers, web addresses, payment or contact outside eBay, question marks in the title or item specifics, comparison phrases ("similar to", "vs", "dupe") and other brands' names in the title. Sent to review: shouting, "L@@K" style filler, repeated keywords, "trusted seller" claims, "see my other items".
 - **Held for a person when it is not sure.** A draft waits as `needs_review` (never sent) when the model rates its own confidence low, a wording rule raises a warning, the price band is wide in real money, the category came from the keyword map rather than eBay, or the seller note tries to instruct the AI. `ebay-lister approve SKU` releases it; the approval is tied to that exact input, so a changed row needs a fresh look, and no approval can override an error.
 - **A check list for the seller.** The model lists what it could not see ("confirm the size from the tag", "the note asked to change the price; ignored"). It is shown in the preview and saved.
@@ -37,7 +37,7 @@ flowchart LR
     R[photos + note<br/>or CSV row] --> H{same input<br/>as last time?}
     H -->|yes| S[saved draft]
     H -->|no| I[AI: what is it?<br/>search phrase]
-    I --> T[Taxonomy API:<br/>category + item specifics]
+    I --> T[Taxonomy + Metadata API:<br/>category, item specifics,<br/>conditions]
     T --> D[AI: title, specifics,<br/>condition, HTML, price]
     D --> V{validate}
     S --> V
@@ -60,7 +60,7 @@ ebay-lister consent-url                    # the page where the sandbox seller s
 ebay-lister exchange-code "<redirect url>" # keeps the refresh token in the macOS Keychain
 ebay-lister setup-sandbox                  # opt in to business policies, make shipping/payment/return policies and a location
 ebay-lister categories "35mm film camera"  # eBay's category suggestions
-ebay-lister aspects 15232                  # what a category requires
+ebay-lister aspects 15230                  # what a category requires
 ebay-lister draft --csv samples/items.csv  # AI drafts + validation, nothing sent
 ebay-lister draft --photos ./shoe --note "nike vomero 5 mens 10, worn twice" --image-url https://...
 ebay-lister list --csv samples/items.csv   # create/update and publish
@@ -101,6 +101,31 @@ What the run shows about the AI, honestly: the model still writes things it then
 
 ![List, approve, rerun, orders, ship, repricing](media/list-reprice.png)
 
+## The live sandbox test (9 November 2026)
+
+The same CLI, the same sample CSV and real Claude Sonnet 5.5, against the **real eBay sandbox** (sandbox seller, EBAY_US). Transcript: [`examples/live-sandbox/terminal.txt`](examples/live-sandbox/terminal.txt); every eBay answer is listed in [docs/EBAY-FACTS.md](docs/EBAY-FACTS.md#checked-live-on-the-ebay-sandbox-9-november-2026).
+
+![The live sandbox run](media/live-sandbox.png)
+
+| Step | What eBay did |
+| --- | --- |
+| `check`, OAuth | application token, the seller's user token from the refresh token, category tree 0: all fine |
+| `setup-sandbox` | opted in to business policies and made the shipping, payment and return policies and the location in one go |
+| `categories`, `aspects` | sensible category suggestions (eBay documents them as unsupported in the sandbox); the real required item specifics |
+| `draft` | Nike Vomero and Canon AE-1 ready, the mug held (its note gives the AI orders), the adidas stopped before eBay (US Shoe Size required, not shown anywhere). 8 AI calls, $0.10; the whole day's testing used $0.24 of Claude |
+| `list` | inventory items and offers created; a second and third run updated the **same** offers (no duplicates) |
+| `approve` the mug, `list` | sent; its offer was made |
+| `reprice --apply` | camera 165.00 -> 148.99, Vomero 119.99 -> 107.99 (10% step limit, competitor file); eBay read the new prices back |
+| publish | **eBay's sandbox would not publish anything that day**: every publishOffer answered 500 "Internal Server Error" (25001) or "System error" (25002), from the tool and from raw calls; eBay's older Trading API gave the same for every variant tried. The account was in good standing, picture upload worked, and without a picture eBay got as far as asking for one, so the fault was on eBay's side (eBay's status page lists the same fault as earlier resolved incidents). Orders and shipping need a published listing and a buyer, so they wait for eBay too |
+
+What the live run found, all fixed the same day (the mock and the tests were wrong in the same places):
+
+1. **Two wrong category ids.** Film Cameras is 15230, not 15232 (eBay: 62005, not in the tree), and 20638 is a kitchen storage category, not Mugs (20695). The keyword map and the mock now use eBay's ids and its real item specifics.
+2. **Conditions are per category.** The model picked USED_GOOD for the camera; eBay refused it (25021, "the provided condition id is invalid for the selected primary category id"): Film Cameras only takes plain "Used". The tool now reads each category's conditions from the Metadata API, gives them to the model and stops any other before eBay. On the redraft it chose correctly for all four items.
+3. **Color takes one value.** Twice the model wrote "Silver, Black" for the chrome camera; on eBay that field takes one value (the old mock allowed several). The extra value is now dropped with a note.
+4. **The orders API is on `api`, not `apiz`.** eBay's own OpenAPI file names `apiz.ebay.com` for the Fulfillment API; both the sandbox and production answer 404 there. Orders and shipping now call `api`.
+5. **A failed publish could cost a new price.** After a failed publish the next run kept the old offer's price over a fresh draft, as if the repricer had set it. Now only a live listing, or one the repricer changed, keeps eBay's price.
+
 ## The eBay sandbox mock
 
 `ebay_lister/mock_ebay.py` answers the same URLs as eBay with the same JSON and error bodies, for the calls this tool makes. It is built from eBay's published OpenAPI specs; [docs/EBAY-FACTS.md](docs/EBAY-FACTS.md) says which details are confirmed from the specs and which are the mock's best guess until the live test. It enforces what trips people up:
@@ -110,11 +135,12 @@ What the run shows about the AI, honestly: the model still writes things it then
 - one offer per SKU, marketplace and format ("Offer entity already exists.", with the existing offerId);
 - publishOffer checking what eBay checks: policies (25017, 25007 to 25009), location (25012), a leaf category (25005), price (25003), quantity (25004), pictures (25014), condition (25021) and every required item specific (25002);
 - business policies only after opting in to SELLING_POLICY_MANAGEMENT;
-- the Fulfillment API only on the `apiz` host, with paging and the status filter;
+- each category's accepted conditions (Metadata API) and publish refusing any other (25021);
+- the Fulfillment API on the `api` host (404 on `apiz`, as the live sandbox answers), with paging and the status filter;
 - createShippingFulfillment with the error ids eBay's spec lists: unknown order (32100), unknown line item (32200), the same line item twice (32210), tracking without a carrier or with spaces or hyphens (32300), a bad shipped date (32500), no line items (32600); 201 with the new fulfillment in the Location header; the order moving to IN_PROGRESS or FULFILLED;
 - 429 (errorId 2002) and 500 (25001) injected to test backoff.
 
-Its category tree is a small slice of EBAY_US with real category ids and trimmed item specifics; the real lists come from the live Taxonomy API.
+Its category tree is a small slice of EBAY_US copied from the live sandbox on 9 November 2026 (category ids, ancestors, required item specifics, conditions), with the optional item specifics trimmed; the full lists come from the live Taxonomy API.
 
 ## Setup
 
@@ -138,17 +164,18 @@ eBay needs an https link for every picture, so put links in `image_urls` (the ph
 
 ```bash
 pip install -r requirements-dev.txt
-pytest          # 203 tests, no eBay account or API key needed
+pytest          # 208 tests, no eBay account or API key needed
 ruff check .
 ```
 
-They cover the OAuth flows (client credentials, consent URL, one-time code, refresh, early renewal, a revoked token renewed once), backoff on 429 and 500 with Retry-After, every publish error above, the taxonomy cache, all validation rules, SKU stability, the whole photo-to-listing flow, re-runs that revise instead of duplicating, draft reuse, a race on offer creation, a model that refuses, the cost cap stopping before a call, an eBay error recorded with its id, bulk CSV with mixed results, the repricing rules including a floor that holds under any step size, staleness from orders, a re-run keeping a repriced price, the CLI end to end, the exact requests sent to Claude and Gemini, every wording rule (and the near misses it must let through, like "Like New", years and model numbers), the review hold and approvals, the publish cap, marking orders shipped (twice, partly, dry run, bad input, every createShippingFulfillment error, a rate limit mid-call), and the production switch.
+They cover the OAuth flows (client credentials, consent URL, one-time code, refresh, early renewal, a revoked token renewed once), backoff on 429 and 500 with Retry-After, every publish error above, the taxonomy cache, all validation rules, SKU stability, the whole photo-to-listing flow, re-runs that revise instead of duplicating, draft reuse, a race on offer creation, a model that refuses, the cost cap stopping before a call, an eBay error recorded with its id, bulk CSV with mixed results, the repricing rules including a floor that holds under any step size, staleness from orders, a re-run keeping a repriced price, the CLI end to end, the exact requests sent to Claude and Gemini, every wording rule (and the near misses it must let through, like "Like New", years and model numbers), the review hold and approvals, the publish cap, marking orders shipped (twice, partly, dry run, bad input, every createShippingFulfillment error, a rate limit mid-call), each category's conditions, a second value on a one-value item specific, a failed publish not costing the next draft its price, the Fulfillment host, and the production switch.
 
 ## Status
 
-- **Tested:** the whole flow with real Claude and Gemini on real photos, against a mock of the eBay Sell Inventory, Account, Fulfillment, Taxonomy and OAuth APIs (above), plus 203 automated tests.
-- **Not yet tested against the real eBay sandbox.** The developer account is waiting on eBay's approval; the sandbox test is the next step, and this README will say what eBay actually did.
-- **Production is built but has never been run.** It stays that way until the sandbox test passes.
+- **Tested live on the real eBay sandbox (9 November 2026):** OAuth (consent, refresh token), business policies and location, category suggestions, item specifics, conditions, AI drafts, inventory items, offers created and then updated in place, the review hold and approval, repricing with eBay reading the new prices back, and the orders call. Five faults found and fixed (above).
+- **Not yet seen live: publishing, and orders and shipping after it.** eBay's sandbox answered every publish with a server error on the day (its fault, not this tool's; details above). Publishing, a sandbox buyer's purchase and `ship` are the next run, and this README will say what eBay did.
+- **Also tested:** the whole flow with real Claude and Gemini on real photos against a mock of the eBay Sell Inventory, Account, Fulfillment, Taxonomy, Metadata and OAuth APIs, now matched to what the live sandbox answered, plus 208 automated tests.
+- **Production is built but has never been run.** It stays that way until a sandbox listing has published.
 - **Not built:** uploading photos to eBay (the Media API; pictures go in as https links), variations (one listing with sizes or colours), live sold-price data for pricing (the model's estimate plus your competitor file are used), a webhook for new orders (polling instead), other marketplaces than EBAY_US.
 
 ## Tech

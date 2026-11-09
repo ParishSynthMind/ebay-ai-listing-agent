@@ -15,9 +15,9 @@ category_map:
   running shoe: "15709"
   sneaker: "15709"
   trainer: "15709"
-  film camera: "15232"
-  camera: "15232"
-  mug: "20638"
+  film camera: "15230"
+  camera: "15230"
+  mug: "20695"
 
 # What `ebay-lister setup-sandbox` creates for the sandbox seller if it is not there yet.
 location:
