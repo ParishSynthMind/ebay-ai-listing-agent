@@ -1,4 +1,4 @@
-anthropic>=2.0
+anthropic>=2.0,<3
 google-genai>=1.0
 requests>=2.31
 PyYAML>=6.0
