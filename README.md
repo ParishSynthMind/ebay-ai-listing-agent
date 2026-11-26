@@ -4,6 +4,8 @@
 
 Give it product photos and a rough note, or a CSV of them, and it writes the eBay listing: an 80-character title, the item specifics that the category actually asks for, the condition, an HTML description and a price with its reasoning. It checks every rule eBay will check, and eBay's wording policies, before a single call is made. Anything it is not sure of waits for a person. Then it lists through the eBay Sell APIs (inventory item, offer, publish) and, once orders come in, marks them shipped with tracking. Claude or Gemini, your choice; sandbox by default, production behind two switches.
 
+**Status (26 Nov 2026):** tested live on the real eBay sandbox on 9 November 2026 up to creating and updating offers. Publishing a listing, orders and marking shipped have NOT been seen live (eBay's sandbox returned server errors on every publish that day), and production has never been run.
+
 ```
 note: "canon ae-1 with 50mm 1.8 lens. shutter fires, meter works, light scuffs on the top plate"
   ->  Canon AE-1 35mm SLR Film Camera with FD 50mm f/1.8 SC Lens   (58/80)
